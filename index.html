@@ -1,0 +1,2749 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+  <title>Ave Mujica: Mask of the Blood Moon</title>
+  <style>
+    :root {
+      --bg:#0b0b0d; --red:#b11226; --gold:#c8a75a; --ink:#e4d7b7; --panel:#121216; --accent:#7a0c17;
+      --ok:#69d392; --warn:#ffce6b; --bad:#ff6b6b;
+    }
+    html,body { margin:0; padding:0; background:var(--bg); color:var(--ink); font-family: "Cinzel Decorative", serif; }
+    /* 结构布局 */
+    #app { display:flex; flex-direction:column; min-height:100vh; }
+    header { padding:10px 16px; border-bottom:1px solid #222; background:linear-gradient(180deg, #0e0e11 0%, #0a0a0c 100%); position:relative; display:flex; align-items:center; gap:12px; }
+    header .logo { height:50px; width:auto; filter:drop-shadow(0 0 8px rgba(200,167,90,0.3)); }
+    header .title-section { flex:1; }
+    header h1 { margin:0; font-weight:600; letter-spacing:1px; color:var(--gold); }
+
+    main { flex:1; display:grid; grid-template-columns: 280px 1fr 300px; gap:12px; padding:12px; }
+    .panel { background:var(--panel); border:1px solid #222; border-radius:8px; overflow:hidden; }
+    .panel h2 { margin:0; padding:8px 10px; font-size:14px; letter-spacing:1px; background:#0f0f12; color:var(--gold); border-bottom:1px solid #1e1e22; }
+    .content { padding:10px; }
+
+
+    /* 顶部血月装饰 */
+    .bloodmoon-wrap { position:absolute; right:12px; top:8px; width:40px; height:40px; }
+    .bloodmoon { width:100%; height:100%; border-radius:50%; background: radial-gradient(closest-side, var(--red), #3a0b10 60%, transparent 65%);
+      box-shadow: 0 0 12px 2px rgba(177,18,38,.7), inset 0 0 16px rgba(255,255,255,.05);
+      animation: moonPulse 2.8s infinite;
+    }
+    @keyframes moonPulse { 0%, 100% { filter:brightness(1) } 50% { filter:brightness(1.25) saturate(1.15) } }
+
+    /* 面具碎裂动画（SVG 装饰） */
+    .mask { width:100%; height:140px; position:relative; }
+    .mask svg { width:100%; height:100%; }
+    .piece { transition: transform .6s ease, opacity .6s ease; }
+    .mask.break .piece { transform: translateY(6px) rotate(2deg); opacity:.85; }
+
+    /* 角色立绘样式 */
+    .character-portrait { 
+      width:100%; 
+      max-width:200px; 
+      height:auto; 
+      border-radius:8px; 
+      border:2px solid var(--gold); 
+      box-shadow: 0 4px 12px rgba(0,0,0,0.6), 0 0 20px rgba(200,167,90,0.2); 
+      filter: sepia(0.1) contrast(1.1) brightness(0.95);
+      transition: all 0.3s ease;
+      margin: 10px 0;
+    }
+    .character-portrait:hover { 
+      transform: scale(1.02); 
+      box-shadow: 0 6px 16px rgba(0,0,0,0.8), 0 0 25px rgba(200,167,90,0.3); 
+    }
+
+    /* 敌人立绘样式 */
+    .enemy-portrait { 
+      width:100%; 
+      max-width:180px; 
+      height:auto; 
+      border-radius:8px; 
+      border:2px solid var(--red); 
+      box-shadow: 0 4px 12px rgba(0,0,0,0.6), 0 0 20px rgba(177,18,38,0.3); 
+      filter: sepia(0.2) contrast(1.15) brightness(0.9) hue-rotate(10deg);
+      transition: all 0.3s ease;
+      margin: 10px auto;
+      display: none;
+    }
+    .enemy-portrait.show { 
+      display: block; 
+      animation: enemyAppear 0.6s ease-out;
+    }
+    .enemy-portrait:hover { 
+      transform: scale(1.02); 
+      box-shadow: 0 6px 16px rgba(0,0,0,0.8), 0 0 25px rgba(177,18,38,0.4); 
+    }
+    @keyframes enemyAppear {
+      from { opacity: 0; transform: translateY(20px) scale(0.9); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.7; transform: scale(1.1); }
+    }
+
+    /* 技能与按钮 */
+    .cards { display:flex; flex-wrap:wrap; gap:8px; }
+    .skill { background:linear-gradient(135deg, #1a1a1d 0%, #0e0e11 100%); border:1px solid #333; border-radius:6px; padding:8px; width:140px; min-height:160px; cursor:pointer; transition:all .2s; position:relative; }
+    .skill:hover { border-color:var(--gold); transform:translateY(-2px); box-shadow:0 4px 8px rgba(0,0,0,.4); }
+    .skill.disabled { opacity:0.5; cursor:not-allowed; border-color:#555; }
+    .skill.disabled:hover { transform:none; box-shadow:none; border-color:#555; }
+    .skill .name { font-weight:600; color:var(--gold); margin-bottom:4px; font-size:13px; }
+    .skill .cost { font-size:10px; color:var(--red); margin-bottom:4px; }
+    .skill .type { font-size:9px; color:#888; margin-bottom:4px; text-transform:uppercase; }
+    .skill .status { font-size:10px; color:#ff6b6b; margin-bottom:4px; font-weight:500; }
+    .skill .desc { font-size:11px; line-height:1.3; color:#ccc; }
+
+    .actions { display:flex; flex-wrap:wrap; gap:8px; }
+    button { background:linear-gradient(180deg, #1a1214, #0e0a0b); border:1px solid #3a0b10; color:#ffd7de; padding:8px 10px; border-radius:6px; cursor:pointer; }
+    button:hover { filter: brightness(1.1); }
+    .choice { display:flex; gap:8px; }
+
+    /* HUD */
+    .hud { display:grid; grid-template-columns: repeat(3, 1fr); gap:6px; }
+    .stat { background:#0e0e12; padding:6px 8px; border:1px solid #1d1d22; border-radius:6px; font-size:12px; }
+    .good { color:var(--ok) } .warn { color:var(--warn) } .bad { color:var(--bad) }
+
+    /* 叙事 */
+    .story { font-size:13px; line-height:1.6; color:#d9d3c6; }
+    .story em { color:var(--gold) }
+
+    /* 移动端适配 */
+    @media (max-width: 980px) {
+      main { grid-template-columns: 1fr; }
+      header { flex-direction: column; text-align: center; gap: 8px; }
+      header .logo { height: 40px; }
+      .character-portrait, .enemy-portrait { max-width: 150px; }
+    }
+    @media (max-width: 600px) {
+      header .logo { height: 35px; }
+      .character-portrait, .enemy-portrait { max-width: 120px; }
+      .cards { justify-content: center; }
+      .card { width: 110px; min-height: 140px; }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <header>
+      <img src="pic/logo_avemujica_副本.png" alt="Ave Mujica Logo" class="logo">
+      <div class="title-section">
+        <h1>Ave Mujica: Mask of the Blood Moon</h1>
+      </div>
+      <div class="bloodmoon-wrap"><div id="bloodmoon" class="bloodmoon"></div></div>
+    </header>
+    <main>
+      <section class="panel" id="left">
+        <h2>剧场 / 面具</h2>
+        <div class="content">
+          <div class="mask" id="mask">
+            <svg viewBox="0 0 300 140">
+              <path class="piece" fill="#f0e6d0" d="M40,20 C120,-10 180,-10 260,20 C240,80 60,80 40,20" />
+              <circle class="piece" cx="110" cy="60" r="8" fill="#0b0b0d"/>
+              <circle class="piece" cx="190" cy="60" r="8" fill="#0b0b0d"/>
+              <path class="piece" d="M100,95 Q150,115 200,95" stroke="#c8a75a" stroke-width="3" fill="none"/>
+            </svg>
+          </div>
+          <img id="characterPortrait" class="character-portrait" src="pic/Doloris.png" alt="Character Portrait">
+          <div id="story" class="story"></div>
+          <div class="actions" id="actions"></div>
+        </div>
+      </section>
+
+      <section class="panel" id="center">
+        <h2>战场 / 卡牌</h2>
+        <div class="content">
+          <div class="hud" id="hud"></div>
+          <img id="enemyPortrait" class="enemy-portrait" src="pic/Timoris.png" alt="Enemy Portrait">
+          <div class="cards" id="hand"></div>
+          <div class="actions" id="combatActions"></div>
+        </div>
+      </section>
+
+      <section class="panel" id="right">
+        <h2>地图 / 遗物</h2>
+        <div class="content">
+          <div id="map"></div>
+          <hr style="border-color:#222;" />
+          <div id="relics"></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+  // ===== 核心工具 =====
+  const rng = { seed: Date.now() % 2147483647, next() { this.seed = (this.seed * 48271) % 2147483647; return this.seed / 2147483647; }, int(a,b){ return a + Math.floor(this.next()*(b-a+1)); } };
+  const clamp = (v,min,max)=> Math.max(min, Math.min(max, v));
+  const safeNum = v => (Number.isFinite(v) ? v : 0);
+  const el = sel => document.querySelector(sel);
+  const make = (tag, props={}) => { const e = document.createElement(tag); Object.assign(e, props); return e; };
+
+  // ===== 游戏状态 =====
+  const game = {
+    state: 'intro', // intro -> map -> event/combat -> resolve -> nextFloor -> boss/end
+    floor: 1, maxFloor: 7,
+    moonPhase: 0, // 0~3 新/上/满/下 或 'blood'血月
+    player: { 
+      name:'Doloris', hp: 80, maxHp:80, block:0, energy:3, maxEnergy:3, 
+      madness:0, // 狂气值 0-10
+      corruption:0, // 堕落度 0-5
+      currentMask: 'doloris', // 当前面具
+      skills: [], // 拥有的技能ID列表
+      skillCooldowns: {}, // 技能冷却状态 {skillId: remainingTurns}
+      skillUses: {}, // 技能使用次数 {skillId: usedCount}
+      nextAttackDouble: false, // 下次攻击伤害翻倍
+      enhancedTurns: 0, // 技能增强回合数
+      relics: [] 
+    },
+    enemy: null,
+    lorePages: [],
+    endings: [],
+    bossDefeated:false,
+  };
+
+  // ===== Ave Mujica 世界观技能系统 =====
+  
+  // 月相系统
+  const MOON_PHASES = ['新月', '上弦', '满月', '下弦'];
+  
+  // 面具系统
+  const MASKS = {
+    doloris: { name: 'Doloris面具', desc: '平衡型，可切换其他面具', color: '#FFD700' },
+    mortis: { name: 'Mortis面具', desc: '死亡系技能增强', color: '#8B0000' },
+    amoris: { name: 'Amoris面具', desc: '魅惑系技能增强', color: '#FF69B4' },
+    timoris: { name: 'Timoris面具', desc: '恐惧系技能增强', color: '#4B0082' },
+    oblivionis: { name: 'Oblivionis面具', desc: '遗忘系技能增强', color: '#2F4F4F' }
+  };
+
+  const SKILL_DB = [
+    // === Doloris 基础技能 ===
+    { id:'shadowStrike', name:'暗影一击', cost:1, cooldown:0, maxUses:0, desc:'造成 8 伤害。基础攻击。', type:'attack', character:'doloris', play:(ctx)=> dmg(ctx, 8) },
+    { id:'maskShift', name:'面具转换', cost:1, cooldown:1, maxUses:0, desc:'切换面具，获得 8 格挡。', type:'special', character:'doloris', play:(ctx)=> { changeMask(ctx); gainBlock(ctx, 8); } },
+    { id:'moonRitual', name:'月相仪式', cost:2, cooldown:2, maxUses:0, desc:'改变月相，根据新月相获得不同效果。', type:'ritual', character:'doloris', play:(ctx)=> changeMoonPhase(ctx) },
+    
+    // === Mortis 死亡系技能 ===
+    { id:'deathTouch', name:'死亡之触', cost:2, cooldown:1, maxUses:0, desc:'造成 10 伤害。满月时+4伤害。', type:'attack', character:'mortis', play:(ctx)=> { 
+      let dmg_val = 10; 
+      if(game.moonPhase === 2) dmg_val += 4; 
+      dmg(ctx, dmg_val); 
+    }},
+    { id:'soulDrain', name:'灵魂汲取', cost:2, cooldown:2, maxUses:0, desc:'造成 8 伤害，回复等量生命。消耗 1 狂气值增强效果。', type:'attack', character:'mortis', play:(ctx)=> { 
+      let dmg_val = 8; 
+      if(ctx.p.madness > 0) { ctx.p.madness--; dmg_val += 4; } 
+      dmg(ctx, dmg_val); heal(ctx, dmg_val); 
+    }},
+    { id:'necromancy', name:'亡灵召唤', cost:3, cooldown:4, maxUses:0, desc:'召唤骷髅战士，获得 15 格挡并使敌方恐惧 2 回合。', type:'summon', character:'mortis', play:(ctx)=> { gainBlock(ctx, 15); addDebuff(ctx,'fear',2); } },
+    { id:'memento', name:'死亡铭记', cost:1, cooldown:0, maxUses:2, desc:'若敌方生命≤30%则处决，否则造成 5 伤害。', type:'execute', character:'mortis', play:(ctx)=> { 
+      if(game.enemy.hp <= game.enemy.maxHp * 0.3) kill(ctx); else dmg(ctx, 5); 
+    }},
+    
+    // === Amoris 魅惑系技能 ===
+    { id:'charm', name:'魅惑之吻', cost:2, cooldown:2, maxUses:0, desc:'造成 6 伤害，敌方魅惑 3 回合（攻击-3）。', type:'debuff', character:'amoris', play:(ctx)=> { dmg(ctx, 6); addDebuff(ctx,'charm',3); } },
+    { id:'bloodRose', name:'血色玫瑰', cost:1, cooldown:1, maxUses:0, desc:'造成 4 伤害，回复 6 生命。新月时效果翻倍。', type:'attack', character:'amoris', play:(ctx)=> { 
+      let dmg_val = 4, heal_val = 6; 
+      if(game.moonPhase === 0) { dmg_val *= 2; heal_val *= 2; } 
+      dmg(ctx, dmg_val); heal(ctx, heal_val); 
+    }},
+    { id:'seduction', name:'诱惑之舞', cost:3, cooldown:3, maxUses:0, desc:'获得 12 格挡，敌方下回合跳过行动。消耗 2 狂气值。', type:'control', character:'amoris', play:(ctx)=> { 
+      if(ctx.p.madness >= 2) { ctx.p.madness -= 2; gainBlock(ctx, 12); game.enemy.stunned = true; } 
+      else { gainBlock(ctx, 8); } 
+    }},
+    { id:'vampiric', name:'吸血之拥', cost:2, cooldown:2, maxUses:0, desc:'造成 7 伤害，回复等量生命，获得 1 狂气值。', type:'attack', character:'amoris', play:(ctx)=> { dmg(ctx, 7); heal(ctx, 7); ctx.p.madness++; } },
+    
+    // === Timoris 恐惧系技能 ===
+    { id:'terrorScream', name:'恐惧尖啸', cost:2, cooldown:1, maxUses:0, desc:'造成 8 伤害，敌方恐惧 2 回合。下弦月时+2伤害。', type:'attack', character:'timoris', play:(ctx)=> { 
+      let dmg_val = 8; 
+      if(game.moonPhase === 3) dmg_val += 2; 
+      dmg(ctx, dmg_val); addDebuff(ctx,'fear',2); 
+    }},
+    { id:'nightmare', name:'噩梦缠绕', cost:1, cooldown:2, maxUses:0, desc:'敌方易伤 3 回合，自身获得 1 狂气值。', type:'debuff', character:'timoris', play:(ctx)=> { addDebuff(ctx,'vuln',3); ctx.p.madness++; } },
+    { id:'madness', name:'狂气爆发', cost:0, cooldown:4, maxUses:0, desc:'消耗所有狂气值，每点狂气值造成 3 伤害。', type:'special', character:'timoris', play:(ctx)=> { 
+      const madness = ctx.p.madness; 
+      ctx.p.madness = 0; 
+      dmg(ctx, madness * 3); 
+    }},
+    { id:'psychicStorm', name:'精神风暴', cost:3, cooldown:3, maxUses:0, desc:'造成 12 伤害，敌方混乱 2 回合，自身获得 2 狂气值。', type:'attack', character:'timoris', play:(ctx)=> { dmg(ctx, 12); addDebuff(ctx,'confusion',2); ctx.p.madness += 2; } },
+    
+    // === Oblivionis 遗忘系技能 ===
+    { id:'forget', name:'遗忘之雾', cost:2, cooldown:2, maxUses:0, desc:'敌方遗忘 3 回合（技能冷却+1），获得 8 格挡。', type:'debuff', character:'oblivionis', play:(ctx)=> { addDebuff(ctx,'forget',3); gainBlock(ctx, 8); } },
+    { id:'voidTouch', name:'虚无之触', cost:1, cooldown:1, maxUses:0, desc:'造成 5 伤害，敌方失去 1 能量。上弦月时+3伤害。', type:'attack', character:'oblivionis', play:(ctx)=> { 
+      let dmg_val = 5; 
+      if(game.moonPhase === 1) dmg_val += 3; 
+      dmg(ctx, dmg_val); 
+      if(game.enemy.energy) game.enemy.energy--; 
+    }},
+    { id:'memoryErase', name:'记忆抹除', cost:3, cooldown:4, maxUses:0, desc:'重置敌方所有增益效果，造成 10 伤害。', type:'dispel', character:'oblivionis', play:(ctx)=> { 
+      game.enemy.buffs = {}; 
+      dmg(ctx, 10); 
+    }},
+    
+    // === 终极技能 ===
+    { id:'maskOfDespair', name:'绝望面具', cost:4, cooldown:5, maxUses:0, desc:'造成 20 伤害，敌方恐惧 3 回合，自身获得 2 堕落度。', type:'ultimate', character:'all', play:(ctx)=> { 
+      dmg(ctx, 20); 
+      addDebuff(ctx,'fear',3); 
+      increaseCorruption({p:ctx.p}); 
+      increaseCorruption({p:ctx.p}); 
+    }},
+    { id:'moonlightSerenade', name:'月光小夜曲', cost:3, cooldown:4, maxUses:0, desc:'回复 25 生命，获得 15 格挡，改变月相。', type:'ultimate', character:'all', play:(ctx)=> { 
+      heal(ctx, 25); 
+      gainBlock(ctx, 15); 
+      changeMoonPhase({p:ctx.p}); 
+    }},
+    { id:'aveMujicaFinale', name:'Ave Mujica终章', cost:5, cooldown:6, maxUses:0, desc:'消耗所有狂气和堕落度，造成巨额伤害。', type:'ultimate', character:'all', play:(ctx)=> { 
+      const totalPower = ctx.p.madness + ctx.p.corruption; 
+      ctx.p.madness = 0; 
+      ctx.p.corruption = 0; 
+      dmg(ctx, totalPower * 5); 
+    }},
+    { id:'oblivion', name:'湮灭虚空', cost:4, cooldown:5, maxUses:0, desc:'消耗 3 狂气值，若敌方生命≤40%则直接击杀，否则造成 20 伤害。', type:'ultimate', character:'oblivionis', play:(ctx)=> { 
+      if(ctx.p.madness >= 3) { 
+        ctx.p.madness -= 3; 
+        if(game.enemy.hp <= game.enemy.maxHp * 0.4) kill(ctx); 
+        else dmg(ctx, 20); 
+      } else dmg(ctx, 15); 
+    }},
+    
+    // === 通用技能 ===
+    { id:'masquerade', name:'假面舞会', cost:2, cooldown:3, maxUses:0, desc:'获得 10 格挡，回复 8 生命，获得 1 狂气值。', type:'support', character:'all', play:(ctx)=> { gainBlock(ctx, 10); heal(ctx, 8); ctx.p.madness++; } },
+    { id:'tarotCard', name:'塔罗占卜', cost:1, cooldown:0, maxUses:3, desc:'随机效果：伤害、治疗、格挡或狂气值。', type:'random', character:'all', play:(ctx)=> tarotEffect(ctx) },
+    { id:'lunarEclipse', name:'月食仪式', cost:3, cooldown:6, maxUses:0, desc:'强制改变月相为血月，所有技能增强 1 回合。', type:'ritual', character:'all', play:(ctx)=> { 
+      game.moonPhase = 'blood'; 
+      ctx.p.enhancedTurns = 1; 
+    }},
+    { id:'corruption', name:'堕落之力', cost:1, cooldown:2, maxUses:0, desc:'增加 1 堕落度，根据堕落度获得不同增益。', type:'corruption', character:'all', play:(ctx)=> increaseCorruption(ctx) },
+  ];
+  
+  function getBaseSkills(){ return ['shadowStrike', 'maskShift', 'bloodRose', 'forget', 'moonRitual']; }
+  
+  // ===== Ave Mujica 系统函数 =====
+  function changeMask(ctx) {
+    const masks = Object.keys(MASKS);
+    const currentIndex = masks.indexOf(ctx.p.currentMask);
+    const nextIndex = (currentIndex + 1) % masks.length;
+    ctx.p.currentMask = masks[nextIndex];
+    addLog(`切换到 ${MASKS[ctx.p.currentMask].name}`);
+  }
+  
+  function changeMoonPhase(ctx) {
+    const oldPhase = game.moonPhase;
+    game.moonPhase = (game.moonPhase + 1) % 4;
+    const phaseName = MOON_PHASES[game.moonPhase];
+    addLog(`月相变化：${phaseName}`);
+    
+    // 根据月相给予不同效果
+    switch(game.moonPhase) {
+      case 0: // 新月
+        heal(ctx, 8);
+        ctx.p.madness++;
+        break;
+      case 1: // 上弦
+        gainBlock(ctx, 12);
+        break;
+      case 2: // 满月
+        ctx.p.energy++;
+        break;
+      case 3: // 下弦
+        dmg(ctx, 5);
+        ctx.p.madness += 2;
+        break;
+    }
+  }
+  
+  function tarotEffect(ctx) {
+    const effects = [
+      () => { dmg(ctx, 8); addLog('塔罗：愚者 - 造成8伤害'); },
+      () => { heal(ctx, 10); addLog('塔罗：女祭司 - 回复10生命'); },
+      () => { gainBlock(ctx, 12); addLog('塔罗：皇帝 - 获得12格挡'); },
+      () => { ctx.p.madness++; addLog('塔罗：恶魔 - 获得1狂气值'); },
+      () => { ctx.p.energy++; addLog('塔罗：星星 - 获得1能量'); },
+      () => { addDebuff(ctx,'vuln',2); addLog('塔罗：死神 - 敌方易伤2回合'); }
+    ];
+    const effect = effects[Math.floor(Math.random() * effects.length)];
+    effect();
+  }
+  
+  function increaseCorruption(ctx) {
+    if(ctx.p.corruption < 5) {
+      ctx.p.corruption++;
+      addLog(`堕落度增加至 ${ctx.p.corruption}`);
+      
+      // 根据堕落度给予增益
+      switch(ctx.p.corruption) {
+        case 1:
+          ctx.p.maxHp += 5;
+          ctx.p.hp += 5;
+          addLog('堕落之力：最大生命+5');
+          break;
+        case 2:
+          ctx.p.maxEnergy++;
+          addLog('堕落之力：最大能量+1');
+          break;
+        case 3:
+          ctx.p.madness += 2;
+          addLog('堕落之力：狂气值+2');
+          break;
+        case 4:
+          addLog('堕落之力：所有技能冷却-1');
+          break;
+        case 5:
+          addLog('堕落之力：解锁终极形态');
+          break;
+      }
+    }
+  }
+
+  // ===== 敌人与Boss =====
+  function makeEnemy(floor){
+    const base = { name:'Timoris', maxHp: 35+floor*5, hp:35+floor*5, block:0, intent:null, debuffs:{vuln:0, curse:0} };
+    if(floor===7) return { ...base, name:'Oblivionis', maxHp: 100, hp:100 };
+    return base;
+  }
+
+  // ===== 遗物 =====
+  const RELICS = [
+    { id:'rose', name:'绯红玫瑰', desc:'+5 最大生命', apply:p=> p.maxHp+=5 },
+    { id:'feather', name:'金羽', desc:'+1 抽牌', apply:p=> p.draw+=1 },
+    { id:'chalice', name:'圣杯', desc:'每回合开始回复2生命', passive:'regen2' },
+    { id:'maskHalf', name:'裂面具碎', desc:'首回合获得 6 格挡', passive:'firstBlock6' },
+    { id:'sigil', name:'秘纹', desc:'伤害+1', passive:'dmgPlus1' },
+    { id:'bell', name:'仪式之钟', desc:'每层开始+1 能量', passive:'floorEnergyPlus1' },
+    { id:'moonCharm', name:'月符', desc:'满月时攻击再+2', passive:'fullMoonPlus2' },
+    { id:'thorn', name:'荆棘', desc:'受击反弹2伤害', passive:'thorns2' },
+    { id:'veil', name:'黑纱', desc:'战斗开始隐寂：敌方首回合攻击-3', passive:'silence3' },
+    { id:'ink', name:'墨契', desc:'抽到终焉咏叹时+1能量', passive:'ariaEnergy' },
+    { id:'eye', name:'金瞳', desc:'易伤持续+1', passive:'vulnPlus1' },
+    { id:'ember', name:'余烬', desc:'每次处决，永久+1伤害', passive:'execStack' },
+    
+    // 新增遗物
+    { id:'cursed_power', name:'诅咒之力', desc:'诅咒每层+1伤害', passive:'cursedPower' },
+    { id:'altar_blessing', name:'祭坛祝福', desc:'技能消耗-1（最低1）', passive:'skillCostReduction' },
+    { id:'mirror_shard', name:'镜片碎片', desc:'反射30%伤害', passive:'reflect30' },
+    { id:'soul_blessing', name:'灵魂祝福', desc:'每回合开始+1能量', passive:'soulEnergy' },
+    { id:'statue_blessing', name:'雕像祝福', desc:'免疫首次致命伤害', passive:'deathWard' },
+    { id:'stone_chunk', name:'石块', desc:'+3格挡', passive:'stoneBlock' },
+    { id:'healing_potion', name:'治疗药水', desc:'战斗开始回复10生命', passive:'combatHeal' },
+    { id:'warrior_soul', name:'战士之魂', desc:'攻击技能+2伤害', passive:'warriorBonus' },
+    { id:'ancient_weapon', name:'古老武器', desc:'所有伤害+3', passive:'ancientWeapon' },
+    { id:'crystal_shard', name:'水晶碎片', desc:'技能冷却-1回合', passive:'cooldownReduction' },
+    { id:'forged_weapon', name:'锻造武器', desc:'攻击+3伤害', passive:'forgedWeapon' },
+    { id:'forged_armor', name:'锻造护甲', desc:'每回合+2格挡', passive:'forgedArmor' },
+    { id:'cursed_treasure', name:'诅咒宝藏', desc:'所有数值+50%', passive:'cursedTreasure' },
+    { id:'time_shard', name:'时间碎片', desc:'技能使用次数+1', passive:'timeBonus' },
+    { id:'scholar_wisdom', name:'学者智慧', desc:'学习技能时额外获得1个', passive:'scholarWisdom' },
+    { id:'moon_blessing', name:'月之祝福', desc:'满月时所有效果翻倍', passive:'moonBlessing' }
+  ];
+
+  // ===== 渲染 =====
+  function renderHUD(){
+    const hud = el('#hud'); hud.innerHTML='';
+    const p = game.player, e = game.enemy || {hp:'—',block:'—'};
+    const moonPhaseText = game.moonPhase === 'blood' ? '血月' : ['新月','上弦','满月','下弦'][game.moonPhase];
+    const maskName = (p.currentMask && MASKS[p.currentMask]) ? MASKS[p.currentMask].name : 'Doloris面具';
+    
+    const stats = [
+      `层数 ${game.floor}/${game.maxFloor}`,
+      `月相 ${moonPhaseText}`,
+      `面具 ${maskName}`,
+      `能量 ${p.energy}/${p.maxEnergy}`,
+      `生命 ${p.hp}/${p.maxHp}`,
+      `格挡 ${p.block}`,
+      `狂气 ${p.madness || 0}/10`,
+      `堕落 ${p.corruption || 0}/5`,
+      `敌人HP ${e.hp}${e.block?(' +'+e.block):''}`,
+    ];
+    stats.forEach(s=> { const d=make('div',{className:'stat',innerText:s}); hud.appendChild(d); });
+  }
+  function renderSkills(){
+    const skillsContainer = el('#hand'); skillsContainer.innerHTML='';
+    game.player.skills.forEach(skillId=>{
+      const skill = SKILL_DB.find(s=>s.id===skillId);
+      if(!skill) return;
+      
+      const skillElement = make('div',{className:'skill'});
+      const isOnCooldown = (game.player.skillCooldowns[skillId] || 0) > 0;
+      const usesLeft = skill.maxUses > 0 ? skill.maxUses - (game.player.skillUses[skillId] || 0) : -1;
+      const canUse = !isOnCooldown && (usesLeft !== 0) && game.player.energy >= skill.cost;
+      
+      if(!canUse) skillElement.classList.add('disabled');
+      
+      skillElement.appendChild(make('div',{className:'name',innerText:skill.name}));
+      skillElement.appendChild(make('div',{className:'cost',innerText:`能量: ${skill.cost}`}));
+      skillElement.appendChild(make('div',{className:'type',innerText:skill.type}));
+      
+      let statusText = '';
+      if(isOnCooldown) statusText = `冷却: ${game.player.skillCooldowns[skillId]}回合`;
+      else if(usesLeft >= 0) statusText = `剩余: ${usesLeft}次`;
+      if(statusText) skillElement.appendChild(make('div',{className:'status',innerText:statusText}));
+      
+      skillElement.appendChild(make('div',{className:'desc',innerText:skill.desc}));
+      
+      if(canUse) {
+        skillElement.onclick = ()=> useSkill(skillId);
+      }
+      skillsContainer.appendChild(skillElement);
+    });
+  }
+  function renderRelics(){
+    const wrap = el('#relics'); wrap.innerHTML='<h3 style="color:var(--gold);margin:4px 0;">遗物</h3>';
+    if(game.player.relics.length===0){ wrap.append('（无）'); return; }
+    game.player.relics.forEach(r=>{ const rr = RELICS.find(x=>x.id===r); const d=make('div'); d.innerText = `• ${rr.name} — ${rr.desc}`; wrap.appendChild(d); });
+  }
+
+  // ===== 立绘更新函数 =====
+  function updateCharacterPortrait(){
+    const portrait = el('#characterPortrait');
+    // 始终显示Doloris，因为她是唯一的主角
+    const characterName = 'Doloris';
+    
+    portrait.src = `pic/${characterName}.png`;
+    portrait.alt = `${characterName} Portrait`;
+  }
+
+  function updateEnemyPortrait(){
+    const portrait = el('#enemyPortrait');
+    if(game.state === 'combat' && game.enemy) {
+      portrait.src = `pic/${game.enemy.name}.png`;
+      portrait.alt = `${game.enemy.name} Portrait`;
+      portrait.classList.add('show');
+    } else {
+      portrait.classList.remove('show');
+    }
+  }
+  function renderMap(){
+    const map = el('#map'); 
+    map.innerHTML = `
+      <h3 style="color:var(--gold);margin:4px 0;">地图</h3>
+      <div id="mapDisplay" style="
+        background: var(--panel);
+        border: 1px solid #222;
+        border-radius: 8px;
+        padding: 15px;
+        margin: 10px 0;
+        min-height: 300px;
+        position: relative;
+      ">
+        ${generateMapHTML()}
+      </div>
+    `;
+    
+    // 在左侧剧场显示导航选项
+    showMapNavigation();
+  }
+  
+  function generateMapHTML() {
+    const currentFloor = game.floor;
+    const maxFloors = 7;
+    let mapHTML = '';
+    
+    // 月相和进度指示器
+    mapHTML += `
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+        <div style="color: var(--gold); font-size: 12px;">
+          <span style="color: var(--gold);">🌙</span> ${getMoonPhaseName(game.moonPhase)}
+        </div>
+        <div style="color: var(--gold); font-size: 12px;">
+          第 ${currentFloor} / ${maxFloors} 层
+        </div>
+      </div>
+      
+      <div style="
+        background: var(--panel);
+        border: 1px solid #222;
+        border-radius: 4px;
+        height: 8px;
+        margin-bottom: 20px;
+        overflow: hidden;
+      ">
+        <div style="
+          background: linear-gradient(90deg, var(--gold), var(--red));
+          height: 100%;
+          width: ${(currentFloor / maxFloors) * 100}%;
+          transition: width 0.3s ease;
+        "></div>
+      </div>
+    `;
+    
+    // 生成地图层级
+    for(let floor = 1; floor <= maxFloors; floor++) {
+      const isCurrentFloor = floor === currentFloor;
+      const isCompleted = floor < currentFloor;
+      const isAccessible = floor <= currentFloor;
+      const isBossFloor = floor === maxFloors;
+      
+      // 使用现有UI的样式
+      let bgColor, borderColor, roomColor;
+      if(isCurrentFloor) {
+        bgColor = 'var(--panel)';
+        borderColor = 'var(--gold)';
+        roomColor = 'var(--gold)';
+      } else if(isCompleted) {
+        bgColor = 'var(--panel)';
+        borderColor = '#222';
+        roomColor = 'var(--ok)';
+      } else {
+        bgColor = 'var(--panel)';
+        borderColor = '#222';
+        roomColor = '#666';
+      }
+      
+      if(isBossFloor && isAccessible) {
+        roomColor = 'var(--accent)';
+      }
+      
+      mapHTML += `
+        <div style="
+          display: flex;
+          align-items: center;
+          margin: 6px 0;
+          padding: 8px;
+          border-radius: 6px;
+          background: ${bgColor};
+          border: 1px solid ${borderColor};
+          transition: all 0.2s ease;
+          ${isAccessible ? 'cursor: pointer;' : 'opacity: 0.5;'}
+        " ${isAccessible ? `onclick="navigateToFloor(${floor})" onmouseover="this.style.borderColor='var(--gold)'" onmouseout="this.style.borderColor='${borderColor}'"` : ''}>
+          
+          <div style="
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: ${roomColor};
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 12px;
+            font-size: 12px;
+            font-weight: bold;
+            color: ${isCurrentFloor || isCompleted ? 'var(--bg)' : 'var(--ink)'};
+            border: 1px solid #222;
+          ">
+            ${isBossFloor ? '👑' : isCompleted ? '✓' : isCurrentFloor ? '●' : floor}
+          </div>
+          
+          <div style="flex: 1;">
+            <div style="
+              color: ${isCurrentFloor ? 'var(--gold)' : isCompleted ? 'var(--ok)' : 'var(--ink)'};
+              font-weight: ${isCurrentFloor ? 'bold' : 'normal'};
+              font-size: 13px;
+            ">
+              ${isBossFloor ? 'Boss层 - 最终战斗' : `第 ${floor} 层`}
+            </div>
+            <div style="
+              color: #888;
+              font-size: 11px;
+              margin-top: 2px;
+            ">
+              ${getFloorDescription(floor, isCurrentFloor, isCompleted)}
+            </div>
+          </div>
+          
+          ${isCurrentFloor ? `
+            <div style="
+              color: var(--gold);
+              font-size: 16px;
+              animation: pulse 2s infinite;
+            ">
+              ➤
+            </div>
+          ` : ''}
+        </div>
+      `;
+      
+      // 添加连接线（除了最后一层）
+      if(floor < maxFloors) {
+        mapHTML += `
+          <div style="
+            width: 2px;
+            height: 12px;
+            background: ${floor < currentFloor ? 'var(--ok)' : '#222'};
+            margin: 0 auto;
+          "></div>
+        `;
+      }
+    }
+    
+    return mapHTML;
+  }
+  
+  function getFloorDescription(floor, isCurrent, isCompleted) {
+    if(floor === 7) return '最终Boss战斗';
+    if(isCompleted) return '已完成';
+    if(isCurrent) return '当前位置 - 选择行动';
+    return '未到达';
+  }
+  
+  function showMapNavigation() {
+    if(game.state !== 'map') return;
+    
+    setStory(`
+      <div style="
+        background: var(--panel);
+        border: 1px solid #222;
+        padding: 20px;
+        border-radius: 8px;
+        margin: 15px 0;
+      ">
+        <h3 style="color: var(--gold); text-align: center; margin-bottom: 15px;">
+          🗺️ 第 ${game.floor} 层探索
+        </h3>
+        
+        <p style="line-height: 1.6; color: var(--ink); margin-bottom: 15px; text-align: center;">
+          你站在第 ${game.floor} 层的入口，面前有三条道路...
+          每一条都通向不同的命运。
+        </p>
+        
+        <div style="
+          background: var(--bg);
+          border: 1px solid #222;
+          padding: 15px;
+          border-radius: 6px;
+          margin: 15px 0;
+        ">
+          <p style="color: var(--gold); font-style: italic; text-align: center;">
+            "选择你的道路，${MASKS[game.player.currentMask].name}。
+            每一个选择都将塑造你的命运..."
+          </p>
+        </div>
+        
+        <div style="
+          display: flex;
+          justify-content: center;
+          gap: 15px;
+          margin-top: 20px;
+        ">
+          <div style="color: var(--red); font-size: 12px;">⚔️ 战斗</div>
+          <div style="color: var(--gold); font-size: 12px;">🎭 事件</div>
+          <div style="color: var(--ok); font-size: 12px;">🔥 休憩</div>
+        </div>
+      </div>
+    `, [
+      {
+        text: '⚔️ 前往战斗',
+        on: () => {
+          addLog('选择了战斗之路');
+          enterNode(0);
+        }
+      },
+      {
+        text: '🎭 前往事件',
+        on: () => {
+          addLog('选择了事件之路');
+          enterNode(1);
+        }
+      },
+      {
+        text: '🔥 前往休憩',
+        on: () => {
+          addLog('选择了休憩之路');
+          enterNode(2);
+        }
+      }
+    ]);
+  }
+  
+  function navigateToFloor(targetFloor) {
+    if(targetFloor > game.floor) {
+      addLog('无法前往未来的层级');
+      return;
+    }
+    
+    if(targetFloor === game.floor) {
+      addLog('你已经在这一层了');
+      showMapNavigation();
+      return;
+    }
+    
+    // 可以添加回顾已完成层级的功能
+    addLog(`回顾第 ${targetFloor} 层的记忆...`);
+  }
+  function setStory(text, actions=[]) {
+    const s = el('#story'); s.innerHTML = text;
+    const act = el('#actions'); act.innerHTML='';
+    actions.forEach(a=>{ const b=make('button',{innerText:a.text}); b.onclick=a.on; act.appendChild(b); });
+  }
+  
+  function addLog(message) {
+    // 简单的日志函数，在当前故事文本后添加信息
+    const s = el('#story');
+    if(s.innerHTML) {
+      s.innerHTML += '<br><small style="color: #888;">' + message + '</small>';
+    }
+  }
+
+  // ===== 战斗与数值 =====
+  function dmg(ctx, base){ 
+    const plus = hasPassive('dmgPlus1')?1:0; 
+    const moonPlus = (game.moonPhase===2 && hasPassive('fullMoonPlus2'))?2:0; 
+    let v = safeNum(base+plus+moonPlus);
+    
+    // 狂暴效果：下次攻击伤害翻倍
+    if(ctx.p.nextAttackDouble) {
+      v *= 2;
+      ctx.p.nextAttackDouble = false;
+    }
+    
+    const m = ctx.e.debuffs.vuln>0?1.5:1; const real = Math.floor(v*m);
+    const blockHit = Math.min(real, ctx.e.block); ctx.e.block -= blockHit; ctx.e.block = clamp(ctx.e.block,0,999);
+    const hpHit = real - blockHit; ctx.e.hp = clamp(ctx.e.hp - hpHit, 0, ctx.e.maxHp);
+    bloodMoonFlash(); if(ctx.e.hp===0) onEnemyDefeated(); }
+  function gainBlock(ctx, amt){ ctx.p.block = clamp(safeNum(ctx.p.block + amt), 0, 999); }
+  function heal(ctx, amt){ ctx.p.hp = clamp(safeNum(ctx.p.hp + amt), 1, ctx.p.maxHp); }
+  function kill(ctx){ ctx.e.hp = 0; onEnemyDefeated(true); }
+  function addDebuff(ctx, key, amt){ ctx.e.debuffs[key] = clamp(safeNum(ctx.e.debuffs[key] + amt + (key==='vuln' && hasPassive('vulnPlus1')?1:0)),0,99); }
+  function hasPassive(id){ return game.player.relics.some(r=> RELICS.find(x=>x.id===r)?.passive===id); }
+
+  function startCombat(){
+    game.state='combat'; game.enemy = makeEnemy(game.floor); game.player.block=0; game.player.energy=(game.player.maxEnergy || 3) + (hasPassive('floorEnergyPlus1')?1:0);
+    if(hasPassive('firstBlock6')) game.player.block+=6;
+    if(hasPassive('silence3')) game.enemy.intent = { type:'atk', val: Math.max(0, enemyIntentValue()-3) };
+    else game.enemy.intent = { type:'atk', val: enemyIntentValue() };
+    
+    // 重置技能使用次数（每场战斗重置）
+    game.player.skillUses = {};
+    
+    // 显示战斗开始对话
+    showCombatStartDialogue();
+    
+    renderHUD(); renderSkills(); renderRelics(); renderCombatActions();
+    updateEnemyPortrait();
+    el('#mask').classList.remove('break');
+  }
+  
+  function showCombatStartDialogue() {
+    const mask = MASKS[game.player.currentMask];
+    const enemyDialogue = getEnemyTaunt(game.enemy.name, game.floor);
+    const playerDialogue = getPlayerCombatStart(game.player.currentMask, game.floor);
+    
+    setStory(`
+      <div style="text-align: center; margin-bottom: 20px;">
+        <h3 style="color: var(--gold);">第 ${game.floor} 层战斗</h3>
+      </div>
+      
+      <div style="background: var(--panel); border: 1px solid #222; padding: 15px; border-radius: 8px; margin: 15px 0;">
+        <strong style="color: var(--red);">${game.enemy.name}：</strong><br>
+        <em style="color: var(--red);">${enemyDialogue}</em>
+      </div>
+      
+      <div style="background: var(--panel); border: 1px solid #222; padding: 15px; border-radius: 8px; margin: 15px 0;">
+        <strong style="color: ${mask.color};">${mask.name}：</strong><br>
+        <em style="color: ${mask.color};">${playerDialogue}</em>
+      </div>
+      
+      <p style="line-height: 1.6; text-align: center; color: var(--ink);">
+        战斗开始！月相：${getMoonPhaseName(game.moonPhase)}
+      </p>
+    `, [{text:'开始战斗', on:() => { 
+      setStory(`<em>${game.player.name}</em> 直面 <em>${game.enemy.name}</em>。`, [{text:'结束回合', on:endTurn}]);
+    }}]);
+  }
+  
+  function getEnemyTaunt(enemyName, floor) {
+    const taunts = {
+      'Timoris': [
+        '又一个迷失的灵魂...你的恐惧将成为我的养料。',
+        '在这里，你的噩梦将变成现实。',
+        '颤抖吧，凡人！你的恐惧暴露了你的弱点。',
+        '我能闻到你内心深处的恐惧...多么美味。',
+        '你以为戴上面具就能隐藏恐惧吗？太天真了。'
+      ],
+      'Oblivionis': [
+        '你的存在...即将被遗忘。',
+        '在虚无面前，一切都将归于寂静。',
+        '记忆、痛苦、希望...我将抹除一切。',
+        '你很快就会忘记自己为何而来。',
+        '湮灭是最终的解脱，接受它吧。'
+      ]
+    };
+    
+    const enemyTaunts = taunts[enemyName] || [
+      '你不应该来到这里...',
+      '这里将是你的终点。',
+      '面具无法拯救你。',
+      '你的旅程到此为止。'
+    ];
+    
+    // 根据层数选择更激烈的台词
+    if (floor >= 6) {
+      return enemyTaunts[enemyTaunts.length - 1] || enemyTaunts[0];
+    } else if (floor >= 3) {
+      return enemyTaunts[Math.floor(enemyTaunts.length / 2)] || enemyTaunts[0];
+    } else {
+      return enemyTaunts[0];
+    }
+  }
+  
+  function getPlayerCombatStart(maskId, floor) {
+    const dialogues = {
+      'doloris': [
+        '痛苦是我的老朋友，而你...只是另一个教训。',
+        '在痛苦中，我找到了力量。你准备好体验了吗？',
+        '每一次伤痛都让我更强，你能给我带来什么？',
+        '痛苦塑造了我，现在轮到我塑造你了。'
+      ],
+      'mortis': [
+        '死亡并不可怕，可怕的是对死亡的无知。',
+        '生与死只是存在的两种形式，让我为你演示。',
+        '在死亡的阴影下，真相才会显现。',
+        '你害怕死亡吗？那就让我来解放你。'
+      ],
+      'amoris': [
+        '爱能治愈一切，也能毁灭一切。',
+        '让我用爱来拯救你...或者毁灭你。',
+        '在爱的名义下，我将给你最后的慈悲。',
+        '爱是最美的毒药，品尝一下吧。'
+      ],
+      'timoris': [
+        '恐惧是诚实的情感，不要试图隐藏。',
+        '在恐惧中，我们找到了真正的自己。',
+        '你的恐惧将成为我的力量。',
+        '拥抱恐惧，它会让你变得更强。'
+      ],
+      'oblivionis': [
+        '遗忘是解脱，让我帮你忘记痛苦。',
+        '在虚无中，一切都将找到平静。',
+        '记忆是负担，让我为你减轻。',
+        '遗忘并非失去，而是新的开始。'
+      ]
+    };
+    
+    const maskDialogues = dialogues[maskId] || dialogues['doloris'];
+    return maskDialogues[Math.min(floor - 1, maskDialogues.length - 1)];
+  }
+  
+  function getMoonPhaseName(phase) {
+    const names = ['新月', '上弦月', '满月', '下弦月'];
+    return names[phase] || '新月';
+  }
+  
+  function showSkillDialogue(skill, maskId) {
+    const skillDialogues = {
+      'shadowStrike': {
+        'doloris': '痛苦如影随形！',
+        'mortis': '死亡的阴影降临！',
+        'amoris': '爱的阴影拥抱你！',
+        'timoris': '恐惧的阴影吞噬一切！',
+        'oblivionis': '遗忘的阴影抹除存在！'
+      },
+      'maskShift': {
+        'doloris': '面具之下，痛苦永恒！',
+        'mortis': '死亡的面具，生命的终结！',
+        'amoris': '爱的面具，温柔的毁灭！',
+        'timoris': '恐惧的面具，真实的自我！',
+        'oblivionis': '虚无的面具，遗忘的开始！'
+      },
+      'bloodRose': {
+        'doloris': '血色玫瑰，痛苦绽放！',
+        'mortis': '死亡之花，凋零之美！',
+        'amoris': '爱的玫瑰，带刺的温柔！',
+        'timoris': '恐惧之花，颤栗的美丽！',
+        'oblivionis': '遗忘之花，虚无的芬芳！'
+      },
+      'forget': {
+        'doloris': '忘记痛苦...不，拥抱它！',
+        'mortis': '忘记生命，拥抱死亡！',
+        'amoris': '忘记恨意，只留下爱！',
+        'timoris': '忘记勇气，只剩恐惧！',
+        'oblivionis': '忘记一切，归于虚无！'
+      },
+      'moonRitual': {
+        'doloris': '月光见证我的痛苦！',
+        'mortis': '月亮啊，照亮死亡之路！',
+        'amoris': '月光下的爱，永恒不变！',
+        'timoris': '月影中的恐惧，无处可逃！',
+        'oblivionis': '月光消散，一切归于虚无！'
+      }
+    };
+    
+    const dialogue = skillDialogues[skill.id]?.[maskId] || `${skill.name}！`;
+    
+    // 简短显示技能台词
+    const storyEl = el('#story');
+    if (storyEl) {
+      const originalContent = storyEl.innerHTML;
+      storyEl.innerHTML = `<div style="color: ${MASKS[maskId].color}; font-style: italic; text-align: center; margin: 10px 0;">${dialogue}</div>` + originalContent;
+      
+      // 2秒后移除台词
+      setTimeout(() => {
+        if (storyEl.innerHTML.includes(dialogue)) {
+          storyEl.innerHTML = originalContent;
+        }
+      }, 2000);
+    }
+  }
+  
+  function showVictoryDialogue(maskId, floor) {
+    const victoryDialogues = {
+      'doloris': [
+        '痛苦让我更强...这只是开始。',
+        '每一次战斗都是痛苦的洗礼。',
+        '在痛苦中，我找到了胜利的真谛。',
+        '痛苦是我的老师，胜利是我的奖赏。',
+        '这份痛苦...我会珍藏。',
+        '越是痛苦，越是美丽。',
+        '痛苦的极致，就是超越。'
+      ],
+      'mortis': [
+        '死亡不是终点，而是新的开始。',
+        '在死亡的边缘，我看到了真相。',
+        '生死之间，我选择了力量。',
+        '死亡教会了我如何生存。',
+        '这场胜利，献给死去的灵魂。',
+        '死亡的阴影下，我依然前行。',
+        '生与死的界限，在我面前模糊。'
+      ],
+      'amoris': [
+        '爱能征服一切，包括敌人。',
+        '用爱战胜恨意，这就是我的道路。',
+        '即使在战斗中，爱依然存在。',
+        '胜利的滋味，因爱而甜美。',
+        '爱让我变得更强，也更温柔。',
+        '在爱的名义下，我不会停止。',
+        '爱是最强的武器，也是最美的盾牌。'
+      ],
+      'timoris': [
+        '恐惧让我保持警觉。',
+        '在恐惧中，我找到了勇气。',
+        '恐惧是诚实的，胜利也是。',
+        '这份恐惧，让胜利更加珍贵。',
+        '恐惧教会了我如何战斗。',
+        '在恐惧的深渊中，我看到了光明。',
+        '恐惧与勇气，只有一线之隔。'
+      ],
+      'oblivionis': [
+        '胜利也会被遗忘，但此刻它属于我。',
+        '在虚无中，这份胜利显得格外珍贵。',
+        '遗忘一切，除了这一刻的胜利。',
+        '虚无并不意味着失败。',
+        '在遗忘的边缘，我依然存在。',
+        '这场胜利，将成为永恒的记忆。',
+        '即使一切都会被遗忘，我依然战斗。'
+      ]
+    };
+    
+    const dialogues = victoryDialogues[maskId] || victoryDialogues['doloris'];
+    const dialogue = dialogues[Math.min(floor - 1, dialogues.length - 1)];
+    
+    // 显示胜利感慨
+    const storyEl = el('#story');
+    if (storyEl) {
+      const victoryMessage = `<div style="background: var(--panel); border: 1px solid #222; padding: 15px; border-radius: 8px; margin: 15px 0; text-align: center;">
+        <strong style="color: ${MASKS[maskId].color};">${MASKS[maskId].name}：</strong><br>
+        <em style="color: ${MASKS[maskId].color}; font-size: 1.1em;">${dialogue}</em>
+      </div>`;
+      
+      storyEl.innerHTML = victoryMessage + storyEl.innerHTML;
+    }
+   }
+   
+   // ===== 深度事件对话系统 =====
+   
+   function showMasqueradeBall() {
+     const currentMask = MASKS[game.player.currentMask];
+     setStory(`
+       <div style="background: var(--panel); border: 1px solid #222; padding: 20px; border-radius: 8px; margin: 15px 0;">
+         <h3 style="color: var(--gold); text-align: center; margin-bottom: 15px;">✨ 华丽的假面舞会 ✨</h3>
+         
+         <p style="line-height: 1.8; color: var(--ink); margin-bottom: 15px;">
+           古老的舞厅中，烛光摇曳，音乐如泣如诉。五个神秘的面具静静地摆在丝绒台座上，
+           每一个都散发着不同的气息...
+         </p>
+         
+         <div style="background: var(--bg); border: 1px solid #222; padding: 15px; border-radius: 6px; margin: 15px 0;">
+           <p style="color: var(--gold); font-style: italic;">
+             "欢迎来到永恒的舞会，旅者。" 一个声音在你耳边轻语，
+             "每一个面具都承载着不同的命运...选择吧，让它成为你灵魂的一部分。"
+           </p>
+         </div>
+         
+         <p style="color: var(--ink); text-align: center;">
+           当前面具：<span style="color: ${currentMask.color};">${currentMask.name}</span>
+         </p>
+       </div>
+     `, [
+       {text: '🎭 与舞会主人对话', on: () => showMasqueradeHost()},
+       {text: '👁️ 仔细观察面具', on: () => showMaskExamination()},
+       {text: '💃 参与舞蹈', on: () => showMasqueradeDance()},
+       {text: '🚪 离开舞会', on: () => toNextFloor()}
+     ]);
+   }
+   
+   function showMasqueradeHost() {
+     setStory(`
+       <div style="background: var(--panel); border: 1px solid #222; padding: 20px; border-radius: 8px;">
+         <p style="line-height: 1.8; color: var(--ink); margin-bottom: 15px;">
+           舞会主人缓缓转身，他的面容隐藏在华丽的面具之后。
+           "你的眼中有着特殊的光芒...告诉我，旅者，你在寻找什么？"
+         </p>
+         
+         <div style="background: var(--bg); border: 1px solid #222; padding: 15px; border-radius: 6px; margin: 15px 0;">
+           <p style="color: var(--gold); font-style: italic;">
+             "力量？救赎？还是...遗忘？每一个面具都能给你不同的答案。
+             但记住，一旦选择，就无法回头。"
+           </p>
+         </div>
+       </div>
+     `, [
+       {text: '💪 "我寻求力量"', on: () => showPowerPath()},
+       {text: '💔 "我寻求救赎"', on: () => showRedemptionPath()},
+       {text: '🌙 "我寻求真相"', on: () => showTruthPath()},
+       {text: '🔙 返回舞会大厅', on: () => showMasqueradeBall()}
+     ]);
+   }
+   
+   function showPowerPath() {
+     setStory(`
+       <div style="background: var(--panel); border: 1px solid var(--red); padding: 20px; border-radius: 8px;">
+         <p style="color: var(--ink); line-height: 1.8;">
+           "力量...是的，我能感受到你内心的渴望。" 主人的声音变得低沉，
+           "但力量总是伴随着代价。你愿意付出什么？"
+         </p>
+         
+         <div style="background: var(--bg); border: 1px solid var(--red); padding: 15px; border-radius: 6px; margin: 15px 0;">
+           <p style="color: var(--red); font-style: italic;">
+             "Mortis的面具能给你死亡的力量，但你的灵魂将承受永恒的痛苦...
+             Timoris的面具能让你掌控恐惧，但你将永远生活在阴影中..."
+           </p>
+         </div>
+       </div>
+     `, [
+       {text: '💀 选择Mortis面具（+3狂气，+强力技能）', on: () => {
+         game.player.currentMask = 'mortis';
+         game.player.madness += 3;
+         const ultimateSkills = SKILL_DB.filter(s => s.type === 'ultimate' && !game.player.skills.includes(s.id));
+         if(ultimateSkills.length > 0) {
+           game.player.skills.push(ultimateSkills[0].id);
+         }
+         addLog('获得了Mortis的死亡之力');
+         renderHUD();
+         showMaskTransformation('mortis');
+       }},
+       {text: '😨 选择Timoris面具（+2狂气，+恐惧技能）', on: () => {
+         game.player.currentMask = 'timoris';
+         game.player.madness += 2;
+         game.player.skills.push('fearStrike');
+         addLog('获得了Timoris的恐惧之力');
+         renderHUD();
+         showMaskTransformation('timoris');
+       }},
+       {text: '🔙 我改变主意了', on: () => showMasqueradeHost()}
+     ]);
+   }
+   
+   function showRedemptionPath() {
+     setStory(`
+       <div style="background: var(--panel); border: 1px solid var(--gold); padding: 20px; border-radius: 8px;">
+         <p style="color: var(--ink); line-height: 1.8;">
+           "救赎...多么美丽而痛苦的愿望。" 主人的声音变得温柔，
+           "但救赎需要勇气面对自己的过去。你准备好了吗？"
+         </p>
+         
+         <div style="background: var(--bg); border: 1px solid var(--gold); padding: 15px; border-radius: 6px; margin: 15px 0;">
+           <p style="color: var(--gold); font-style: italic;">
+             "Amoris的面具能治愈你的伤痛，但你必须学会原谅...
+             Doloris的面具能让你接受痛苦，在痛苦中找到平衡..."
+           </p>
+         </div>
+       </div>
+     `, [
+       {text: '💖 选择Amoris面具（+15生命，-1狂气）', on: () => {
+         game.player.currentMask = 'amoris';
+         game.player.maxHp += 15;
+         game.player.hp += 15;
+         if(game.player.madness > 0) game.player.madness--;
+         addLog('获得了Amoris的爱之力');
+         renderHUD();
+         showMaskTransformation('amoris');
+       }},
+       {text: '⚖️ 选择Doloris面具（平衡所有属性）', on: () => {
+         game.player.currentMask = 'doloris';
+         heal({p:game.player}, 10);
+         game.player.maxEnergy += 1;
+         addLog('获得了Doloris的平衡之力');
+         renderHUD();
+         showMaskTransformation('doloris');
+       }},
+       {text: '🔙 我还没准备好', on: () => showMasqueradeHost()}
+     ]);
+   }
+   
+   function showTruthPath() {
+     setStory(`
+       <div style="background: var(--panel); border: 1px solid var(--accent); padding: 20px; border-radius: 8px;">
+         <p style="color: var(--ink); line-height: 1.8;">
+           "真相...最危险也最珍贵的追求。" 主人的声音变得神秘，
+           "但真相往往比谎言更加残酷。你确定要知道吗？"
+         </p>
+         
+         <div style="background: var(--bg); border: 1px solid var(--accent); padding: 15px; border-radius: 6px; margin: 15px 0;">
+           <p style="color: var(--accent); font-style: italic;">
+             "Oblivionis的面具能让你看到真相，但你可能会希望忘记所见...
+             有些知识，一旦获得，就无法抹除..."
+           </p>
+         </div>
+       </div>
+     `, [
+       {text: '🌫️ 选择Oblivionis面具（+2最大能量，+特殊能力）', on: () => {
+         game.player.currentMask = 'oblivionis';
+         game.player.maxEnergy += 2;
+         game.player.skills.push('voidGaze');
+         addLog('获得了Oblivionis的虚无之力');
+         renderHUD();
+         showMaskTransformation('oblivionis');
+       }},
+       {text: '📚 询问面具的历史（+1狂气，获得知识）', on: () => {
+         game.player.madness++;
+         game.lorePages.push('面具的真相：它们曾经是活人的脸...');
+         addLog('获得了禁忌知识');
+         renderHUD();
+         toNextFloor();
+       }},
+       {text: '🔙 有些真相不必知道', on: () => showMasqueradeHost()}
+     ]);
+   }
+   
+   function showMaskTransformation(maskId) {
+     const mask = MASKS[maskId];
+     setStory(`
+       <div style="background: var(--panel); border: 1px solid ${mask.color}; padding: 20px; border-radius: 8px;">
+         <h3 style="color: ${mask.color}; text-align: center;">面具融合</h3>
+         
+         <p style="line-height: 1.8; color: var(--ink); text-align: center; margin: 20px 0;">
+           面具缓缓贴合你的脸庞，一股奇异的力量涌入你的身体...
+           你感到自己正在发生某种根本性的改变。
+         </p>
+         
+         <div style="background: var(--bg); border: 1px solid ${mask.color}; padding: 15px; border-radius: 6px; margin: 15px 0;">
+           <p style="color: ${mask.color}; font-style: italic; text-align: center;">
+             "${getMaskTransformationText(maskId)}"
+           </p>
+         </div>
+         
+         <p style="color: var(--ink); text-align: center;">
+           你现在是 <span style="color: ${mask.color};">${mask.name}</span>
+         </p>
+       </div>
+     `, [{text: '继续前行', on: () => toNextFloor()}]);
+   }
+   
+   function getMaskTransformationText(maskId) {
+      const texts = {
+        'doloris': '痛苦与平衡在你心中交融，你学会了在苦难中寻找力量。',
+        'mortis': '死亡的阴影笼罩着你，但你不再恐惧，因为你已经成为死亡本身。',
+        'amoris': '爱的温暖填满你的心房，即使在最黑暗的时刻，你也能找到光明。',
+        'timoris': '恐惧成为你的盟友，在阴影中，你找到了真正的自己。',
+        'oblivionis': '虚无的力量在你体内流淌，你开始理解遗忘的真正意义。'
+      };
+      return texts[maskId] || '你感受到了面具的力量。';
+    }
+    
+    function showMaskExamination() {
+      setStory(`
+        <div style="background: var(--panel); border: 1px solid var(--gold); padding: 20px; border-radius: 8px;">
+          <h3 style="color: var(--gold); text-align: center;">面具的秘密</h3>
+          
+          <p style="line-height: 1.8; color: var(--ink); margin-bottom: 15px;">
+            你仔细观察着这些面具，每一个都有着独特的纹理和气息...
+          </p>
+          
+          <div style="background: var(--bg); border: 1px solid var(--gold); padding: 15px; border-radius: 6px; margin: 15px 0;">
+            <p style="color: var(--gold); font-style: italic;">
+              在月光的照耀下，你发现这些面具似乎在轻微地...呼吸？
+              它们的眼孔中闪烁着微弱的光芒，仿佛有生命在其中流淌。
+            </p>
+          </div>
+        </div>
+      `, [
+        {text: '🔍 深入研究面具（+1狂气，获得知识）', on: () => {
+          game.player.madness++;
+          game.lorePages.push('面具观察记录：它们似乎保留着前主人的记忆...');
+          addLog('发现了面具的秘密');
+          renderHUD();
+          toNextFloor();
+        }},
+        {text: '👆 触摸一个面具', on: () => showMaskTouch()},
+        {text: '🔙 返回舞会大厅', on: () => showMasqueradeBall()}
+      ]);
+    }
+    
+    function showMaskTouch() {
+      const masks = ['doloris', 'mortis', 'amoris', 'timoris', 'oblivionis'];
+      const randomMask = masks[rng.int(0, masks.length - 1)];
+      const mask = MASKS[randomMask];
+      
+      setStory(`
+        <div style="background: var(--panel); border: 1px solid ${mask.color}; padding: 20px; border-radius: 8px;">
+          <p style="line-height: 1.8; color: var(--ink); margin-bottom: 15px;">
+            你的手指轻触${mask.name}面具的表面，瞬间，一股记忆的洪流涌入你的脑海...
+          </p>
+          
+          <div style="background: var(--bg); border: 1px solid ${mask.color}; padding: 15px; border-radius: 6px; margin: 15px 0;">
+            <p style="color: ${mask.color}; font-style: italic;">
+              "${getMaskMemory(randomMask)}"
+            </p>
+          </div>
+          
+          <p style="color: var(--ink); text-align: center;">
+            这些记忆不属于你，但现在它们成为了你的一部分...
+          </p>
+        </div>
+      `, [
+        {text: '💭 接受这些记忆（+1狂气，+特殊能力）', on: () => {
+          game.player.madness++;
+          game.player.skills.push('memoryEcho');
+          addLog(`获得了${mask.name}的记忆回响`);
+          renderHUD();
+          toNextFloor();
+        }},
+        {text: '🚫 抗拒记忆（-5生命，保持清醒）', on: () => {
+          game.player.hp -= 5;
+          addLog('抗拒了异质记忆的侵蚀');
+          renderHUD();
+          toNextFloor();
+        }}
+      ]);
+    }
+    
+    function getMaskMemory(maskId) {
+      const memories = {
+        'doloris': '一个女孩在雨中哭泣，她的眼泪混合着血液...痛苦让她变得更强，但也更加孤独。',
+        'mortis': '死亡的钟声响起，一个年轻人在病床上安静地闭上了眼睛...但他的灵魂拒绝离去。',
+        'amoris': '两个恋人在月下起舞，他们的爱如此纯真...直到背叛的匕首刺入心脏。',
+        'timoris': '黑暗中的孩子瑟瑟发抖，恐惧吞噬着他...但在恐惧中，他找到了力量。',
+        'oblivionis': '一个老人坐在空荡的房间里，他忘记了一切...包括自己的名字。'
+      };
+      return memories[maskId] || '模糊的记忆片段在你脑海中闪过...';
+    }
+    
+    function showMasqueradeDance() {
+      setStory(`
+        <div style="background: var(--panel); border: 1px solid var(--accent); padding: 20px; border-radius: 8px;">
+          <h3 style="color: var(--gold); text-align: center;">永恒的舞蹈</h3>
+          
+          <p style="line-height: 1.8; color: var(--ink); margin-bottom: 15px;">
+            你走向舞池中央，音乐变得更加悠扬。其他舞者都戴着面具，
+            他们的动作优雅而诡异，仿佛在进行某种古老的仪式...
+          </p>
+          
+          <div style="background: var(--bg); border: 1px solid var(--accent); padding: 15px; border-radius: 6px; margin: 15px 0;">
+            <p style="color: var(--accent); font-style: italic;">
+              随着舞蹈的进行，你感到时间变得模糊，现实与幻象交织在一起。
+              这不仅仅是舞蹈，更像是灵魂的交流...
+            </p>
+          </div>
+        </div>
+      `, [
+        {text: '💃 沉浸在舞蹈中（+1最大能量，+1狂气）', on: () => {
+          game.player.maxEnergy++;
+          game.player.madness++;
+          addLog('在永恒的舞蹈中获得了力量');
+          renderHUD();
+          toNextFloor();
+        }},
+        {text: '🎭 尝试与其他舞者交流', on: () => showDancerInteraction()},
+        {text: '🚪 离开舞池', on: () => showMasqueradeBall()}
+      ]);
+    }
+    
+    function showDancerInteraction() {
+      const dancers = [
+        {name: '红衣舞者', color: '#FF6B6B', message: '你的痛苦...我能感受到。让我们一起在痛苦中起舞吧。'},
+        {name: '黑衣舞者', color: '#2F2F2F', message: '死亡并不可怕，可怕的是对死亡的无知。'},
+        {name: '白衣舞者', color: '#FFB6C1', message: '爱是最美的舞蹈，也是最痛的诗歌。'},
+        {name: '灰衣舞者', color: '#A0A0A0', message: '在遗忘中，我们找到了永恒的平静。'}
+      ];
+      
+      const dancer = dancers[rng.int(0, dancers.length - 1)];
+      
+      setStory(`
+        <div style="background: var(--panel); border: 1px solid #222; padding: 20px; border-radius: 8px;">
+          <p style="line-height: 1.8; color: var(--ink); margin-bottom: 15px;">
+            一位${dancer.name}向你走来，他们的动作如水般流畅。
+            当你们的目光相遇时，他们轻声说道：
+          </p>
+          
+          <div style="background: var(--bg); border: 1px solid #222; padding: 15px; border-radius: 6px; margin: 15px 0;">
+            <p style="color: ${dancer.color}; font-style: italic;">
+              "${dancer.message}"
+            </p>
+          </div>
+        </div>
+      `, [
+        {text: '🤝 与舞者共舞（获得特殊技能）', on: () => {
+          const skills = ['dancingBlade', 'rhythmStrike', 'gracefulDodge'];
+          const skill = skills[rng.int(0, skills.length - 1)];
+          game.player.skills.push(skill);
+          addLog(`从${dancer.name}那里学会了舞蹈技巧`);
+          renderHUD();
+          toNextFloor();
+        }},
+        {text: '💬 深入交谈（+1狂气，获得知识）', on: () => {
+          game.player.madness++;
+          game.lorePages.push(`${dancer.name}的话语：舞蹈是灵魂的语言...`);
+          addLog('获得了舞者的智慧');
+          renderHUD();
+          toNextFloor();
+        }},
+        {text: '🔙 礼貌地离开', on: () => showMasqueradeDance()}
+      ]);
+    }
+    
+    // ===== Ave Mujica 成员遭遇事件 =====
+    function showAveMujicaEncounter() {
+      const members = [
+        {
+          name: 'Sakiko Togawa',
+          title: '堕落的指挥者',
+          color: '#8B0000',
+          dialogue: '你的眼中有着与我相似的黑暗...告诉我，你是否也在寻找真正的自己？',
+          choices: [
+            {
+              text: '💀 "我在寻找力量"',
+              effect: () => {
+                game.player.madness += 2;
+                const darkSkills = SKILL_DB.filter(s => s.type === 'dark' && !game.player.skills.includes(s.id));
+                if(darkSkills.length > 0) {
+                  game.player.skills.push(darkSkills[0].id);
+                }
+                addLog('从Sakiko那里学到了黑暗的力量');
+              }
+            },
+            {
+              text: '🎭 "我在寻找真相"',
+              effect: () => {
+                game.player.madness += 1;
+                game.lorePages.push('Sakiko的话语：真相往往比谎言更加残酷...');
+                addLog('获得了Sakiko的智慧');
+              }
+            }
+          ]
+        },
+        {
+          name: 'Tomori Takamatsu',
+          title: '沉默的观察者',
+          color: '#4B0082',
+          dialogue: '音乐...是灵魂的语言。你的灵魂在唱什么歌？',
+          choices: [
+            {
+              text: '🎵 "悲伤的挽歌"',
+              effect: () => {
+                heal({p:game.player}, 10);
+                game.player.madness++;
+                addLog('Tomori的音乐治愈了你的伤痛');
+              }
+            },
+            {
+              text: '🌙 "月下的咏叹调"',
+              effect: () => {
+                changeMoonPhase({p:game.player});
+                game.player.maxEnergy++;
+                addLog('在Tomori的指导下感受到了月之力量');
+              }
+            }
+          ]
+        },
+        {
+          name: 'Anon Chihaya',
+          title: '迷失的少女',
+          color: '#2F4F4F',
+          dialogue: '我...我不记得自己是谁了。但是，我能感受到你内心的痛苦...',
+          choices: [
+            {
+              text: '🤝 "让我帮助你"',
+              effect: () => {
+                game.player.hp += 15;
+                if(game.player.corruption > 0) game.player.corruption--;
+                addLog('帮助Anon找回了一些记忆');
+              }
+            },
+            {
+              text: '🌫️ "一起遗忘吧"',
+              effect: () => {
+                game.player.madness += 2;
+                game.player.skills.push('memoryVoid');
+                addLog('与Anon一起沉入遗忘的深渊');
+              }
+            }
+          ]
+        },
+        {
+          name: 'Soyo Nagasaki',
+          title: '虚假的微笑',
+          color: '#FFB6C1',
+          dialogue: '微笑...是最好的面具。你想要我教你如何隐藏真实的自己吗？',
+          choices: [
+            {
+              text: '😊 "教我如何微笑"',
+              effect: () => {
+                game.player.skills.push('charmingSmile');
+                game.player.corruption++;
+                addLog('学会了Soyo的虚假微笑');
+              }
+            },
+            {
+              text: '😢 "我不想隐藏"',
+              effect: () => {
+                game.player.madness--;
+                game.player.hp += 10;
+                addLog('选择了真实的自己');
+              }
+            }
+          ]
+        },
+        {
+          name: 'Mutsumi Wakaba',
+          title: '纯真的守护者',
+          color: '#98FB98',
+          dialogue: '即使在最黑暗的地方，也要保持心中的光明...你还记得光明是什么样子吗？',
+          choices: [
+            {
+              text: '✨ "我还记得"',
+              effect: () => {
+                if(game.player.corruption > 0) game.player.corruption--;
+                game.player.hp += 20;
+                addLog('Mutsumi的纯真净化了你的心灵');
+              }
+            },
+            {
+              text: '🌑 "光明已经消失了"',
+              effect: () => {
+                game.player.madness += 2;
+                game.player.maxHp += 10;
+                addLog('在黑暗中找到了另一种力量');
+              }
+            }
+          ]
+        }
+      ];
+      
+      const member = members[rng.int(0, members.length - 1)];
+      
+      setStory(`
+        <div style="background: var(--panel); border: 1px solid ${member.color}; padding: 20px; border-radius: 8px;">
+          <h3 style="color: ${member.color}; text-align: center;">神秘的遭遇</h3>
+          
+          <p style="line-height: 1.8; color: var(--ink); margin-bottom: 15px;">
+            在昏暗的走廊中，你遇到了一个神秘的身影。她缓缓转身，露出了熟悉却又陌生的面容...
+          </p>
+          
+          <div style="background: var(--bg); border: 1px solid ${member.color}; padding: 15px; border-radius: 6px; margin: 15px 0;">
+            <p style="color: ${member.color}; font-weight: bold; margin-bottom: 8px;">
+              ${member.name} - ${member.title}
+            </p>
+            <p style="color: var(--ink); font-style: italic;">
+              "${member.dialogue}"
+            </p>
+          </div>
+          
+          <p style="color: var(--ink); text-align: center; font-size: 0.9em;">
+            她的眼中闪烁着复杂的情感，等待着你的回答...
+          </p>
+        </div>
+      `, member.choices.map(choice => ({
+        text: choice.text,
+        on: () => {
+          choice.effect();
+          renderHUD();
+          toNextFloor();
+        }
+      })).concat([
+        {text: '🚪 默默离开', on: () => toNextFloor()}
+      ]));
+     }
+     
+     // ===== 塔罗占卜事件 =====
+     function showTarotReading() {
+       const cards = [
+         {
+           name: '愚者',
+           meaning: '新的开始',
+           effect: () => {
+             game.player.skills = [];
+             game.player.hp = game.player.maxHp;
+             addLog('愚者的力量让你重新开始');
+           }
+         },
+         {
+           name: '死神',
+           meaning: '终结与重生',
+           effect: () => {
+             game.player.hp = Math.max(1, game.player.hp - 20);
+             game.player.maxHp += 15;
+             game.player.madness += 2;
+             addLog('死神带来了痛苦的蜕变');
+           }
+         },
+         {
+           name: '月亮',
+           meaning: '幻象与直觉',
+           effect: () => {
+             changeMoonPhase({p:game.player});
+             game.player.madness++;
+             game.lorePages.push('月亮的秘密：现实与梦境的边界正在模糊...');
+             addLog('月亮揭示了隐藏的真相');
+           }
+         },
+         {
+           name: '塔',
+           meaning: '突然的变化',
+           effect: () => {
+             const randomStat = ['hp', 'maxHp', 'energy', 'maxEnergy'][rng.int(0, 3)];
+             if(randomStat.includes('max')) {
+               game.player[randomStat] += rng.int(5, 15);
+             } else {
+               game.player[randomStat] = Math.max(1, game.player[randomStat] + rng.int(-10, 20));
+             }
+             addLog('塔的力量带来了意外的变化');
+           }
+         },
+         {
+           name: '恶魔',
+           meaning: '诱惑与束缚',
+           effect: () => {
+             game.player.corruption += 2;
+             game.player.madness++;
+             const darkSkills = SKILL_DB.filter(s => s.type === 'dark' && !game.player.skills.includes(s.id));
+             if(darkSkills.length > 0) {
+               game.player.skills.push(darkSkills[0].id);
+             }
+             addLog('恶魔的诱惑给予了黑暗的力量');
+           }
+         }
+       ];
+       
+       const card = cards[rng.int(0, cards.length - 1)];
+       
+       setStory(`
+         <div style="background: var(--panel); border: 1px solid var(--gold); padding: 20px; border-radius: 8px;">
+           <h3 style="color: var(--gold); text-align: center;">神秘的塔罗占卜</h3>
+           
+           <p style="line-height: 1.8; color: var(--ink); margin-bottom: 15px;">
+             在昏暗的房间里，一位神秘的占卜师坐在古老的桌子前。她的眼中闪烁着智慧的光芒，手中的塔罗牌散发着神秘的能量...
+           </p>
+           
+           <div style="background: var(--bg); border: 1px solid var(--gold); padding: 15px; border-radius: 6px; margin: 15px 0; text-align: center;">
+             <p style="color: var(--gold); font-weight: bold; font-size: 1.2em; margin-bottom: 8px;">
+               ${card.name}
+             </p>
+             <p style="color: var(--ink); font-style: italic;">
+               "${card.meaning}"
+             </p>
+           </div>
+           
+           <p style="color: var(--ink); text-align: center; font-size: 0.9em;">
+             "这张牌揭示了你命运的一个片段...你准备好接受它的指引了吗？"
+           </p>
+         </div>
+       `, [
+         {
+           text: '🔮 接受命运的指引',
+           on: () => {
+             card.effect();
+             renderHUD();
+             toNextFloor();
+           }
+         },
+         {
+           text: '🚪 拒绝占卜',
+           on: () => {
+             addLog('你选择了相信自己的道路');
+             toNextFloor();
+           }
+         }
+       ]);
+     }
+   
+  function enemyIntentValue(){ return 5 + rng.int(0,3) + Math.floor(game.floor*0.5); }
+  function renderCombatActions(){ const ca=el('#combatActions'); ca.innerHTML=''; const end=make('button',{innerText:'结束回合'}); end.onclick=endTurn; ca.appendChild(end); }
+
+
+  function rngShuffle(arr){ const a=[...arr]; for(let i=a.length-1;i>0;i--){ const j=rng.int(0,i); [a[i],a[j]]=[a[j],a[i]]; } return a; }
+
+  function useSkill(skillId){ 
+    const skill = SKILL_DB.find(s=>s.id===skillId); 
+    if(!skill) return; 
+    const p = game.player; 
+    
+    // 检查能量、冷却和使用次数
+    if(p.energy < skill.cost) return;
+    if((p.skillCooldowns[skillId] || 0) > 0) return;
+    if(skill.maxUses > 0 && (p.skillUses[skillId] || 0) >= skill.maxUses) return;
+    
+    // 消耗能量
+    p.energy -= skill.cost; 
+    
+    // 显示技能台词
+    showSkillDialogue(skill, p.currentMask);
+    
+    // 执行技能效果
+    const ctx = {p, e: game.enemy}; 
+    skill.play(ctx);
+    
+    // 设置冷却
+    if(skill.cooldown > 0) {
+      p.skillCooldowns[skillId] = skill.cooldown;
+    }
+    
+    // 增加使用次数
+    if(skill.maxUses > 0) {
+      p.skillUses[skillId] = (p.skillUses[skillId] || 0) + 1;
+    }
+    
+    el('#mask').classList.add('break');
+    renderSkills(); renderHUD(); 
+  }
+
+  function endTurn(){ // 敌人行动
+    const e=game.enemy, p=game.player; const val = e.intent?.val ?? enemyIntentValue(); const dmgVal = Math.max(0, safeNum(val - p.block));
+    const blockConsume = Math.min(p.block, val); p.block -= blockConsume; p.block = clamp(p.block,0,999);
+    p.hp = clamp(p.hp - dmgVal, 0, p.maxHp);
+    if(hasPassive('thorns2')) e.hp = clamp(e.hp - 2, 0, e.maxHp);
+    if(e.hp===0){ onEnemyDefeated(); return; }
+    
+    // 回合刷新
+    p.energy = (p.maxEnergy || 3) + (hasPassive('floorEnergyPlus1')?1:0);
+    if(hasPassive('regen2')) heal({p},2);
+    
+    // 技能冷却减少
+    for(let skillId in p.skillCooldowns) {
+      if(p.skillCooldowns[skillId] > 0) {
+        p.skillCooldowns[skillId]--;
+        if(p.skillCooldowns[skillId] <= 0) {
+          delete p.skillCooldowns[skillId];
+        }
+      }
+    }
+    
+    // debuff/意图刷新
+    if(e.debuffs.vuln>0) e.debuffs.vuln--; if(e.debuffs.curse>0) { p.hp = clamp(p.hp-1,0,p.maxHp); }
+    e.block = 0; e.intent = { type:'atk', val: enemyIntentValue() };
+    renderHUD(); renderSkills(); setStory(`敌方举刃，意图造成 ${e.intent.val} 伤害。`, [{text:'结束回合', on:endTurn}]);
+  }
+
+  function onEnemyDefeated(executed=false){
+    // 显示胜利感慨
+    showVictoryDialogue(game.player.currentMask, game.floor);
+    
+    if(game.floor===7){ game.bossDefeated=true; playFinalChorus(); resolveEnding(); return; }
+    // 掉落：技能或遗物或残页
+    const rewardType = rng.int(0,2); if(rewardType===0){ offerSkills(); } else if(rewardType===1){ offerRelic(); } else { offerLore(); }
+  }
+
+  function offerSkills(){
+    const availableSkills = SKILL_DB.filter(skill => !game.player.skills.includes(skill.id));
+    const pool = rngShuffle(availableSkills).slice(0,3);
+    setStory('选择一个新技能学习：', pool.map(skill=>({ text: skill.name, on(){ game.player.skills.push(skill.id); toNextFloor(); } })));
+  }
+  function offerRelic(){
+    const pool = rngShuffle(RELICS).slice(0,2);
+    setStory('选择一件遗物：', pool.map(rr=>({ text: rr.name, on(){ game.player.relics.push(rr.id); rr.apply && rr.apply(game.player); renderRelics(); toNextFloor(); } })));
+  }
+  function offerLore(){ const text = ['残页：面具的裂纹承载记忆。','残页：血月不是天象，而是誓约。','残页：狂气若被引导，亦可成为道路。']; const pick = text[rng.int(0, text.length-1)];
+    game.lorePages.push(pick); setStory(`${pick}`, [{text:'继续前行', on:toNextFloor}]); }
+
+  function toNextFloor(){ 
+    game.floor++; 
+    game.moonPhase = (game.moonPhase+1)%4; 
+    game.state='map';
+    
+    // 显示层间过渡故事，然后进入地图
+    showFloorTransition();
+  }
+  
+  function showFloorTransition() {
+    const characterNames = ['Doloris','Mortis','Amoris','Timoris','Oblivionis'];
+    const currentCharacter = characterNames[(game.floor-1) % characterNames.length];
+    const mask = MASKS[Object.keys(MASKS)[(game.floor-1) % Object.keys(MASKS).length]];
+    
+    // 根据层数显示不同的过渡故事
+    if (game.floor <= 7) {
+      showRegularFloorTransition(currentCharacter, mask);
+    } else {
+      showFinalFloorTransition();
+    }
+  }
+  
+  function showRegularFloorTransition(characterName, mask) {
+    const floorStories = {
+      1: {
+        title: '痛苦的回响',
+        story: `
+          <p style="line-height: 1.6;">
+            你踏入了第一层的深处，空气中弥漫着淡淡的血腥味。
+            墙壁上刻满了古老的符文，每一个都在诉说着痛苦的故事...
+          </p>
+          
+          <div style="background: var(--bg); border: 1px solid var(--gold); padding: 15px; border-radius: 6px; margin: 15px 0;">
+            <em style="color: ${mask.color};">
+              「${characterName}的声音在走廊中回响：痛苦是成长的代价，
+              只有经历过真正的痛苦，才能理解力量的真谛...」
+            </em>
+          </div>
+          
+          <p style="line-height: 1.6; color: var(--ink);">
+            你感受到面具在轻微颤动，仿佛在回应着这些话语。
+            前方的道路变得更加扭曲，现实与幻象开始交织...
+          </p>
+        `,
+        choices: [
+           {text: '倾听内心的声音', action: () => { addMadnessDialogue(); }},
+           {text: '继续前进', action: () => { renderMap(); }}
+         ]
+      },
+      2: {
+        title: '死亡的低语',
+        story: `
+          <p style="line-height: 1.6;">
+            第二层笼罩在死寂的氛围中，你的脚步声在空旷的走廊里显得格外清晰。
+            墙壁上的画像似乎在注视着你，它们的眼中充满了对死亡的渴望...
+          </p>
+          
+          <div style="background: var(--bg); border: 1px solid var(--gold); padding: 15px; border-radius: 6px; margin: 15px 0;">
+            <em style="color: ${mask.color};">
+              「${characterName}的幻影出现在你面前：死亡并不是终结，
+              而是另一种形式的存在。在这里，生与死的界限变得模糊...」
+            </em>
+          </div>
+          
+          <p style="line-height: 1.6; color: var(--ink);">
+            你感受到一股寒意从脊背升起，但同时也感受到了某种解脱。
+            这种矛盾的感觉让你对自己的存在产生了新的思考...
+          </p>
+        `,
+        choices: [
+          {text: '与死亡对话', action: () => { addCorruptionDialogue(); }},
+          {text: '拒绝诱惑', action: () => { renderMap(); }}
+        ]
+      },
+      3: {
+        title: '爱恋的迷雾',
+        story: `
+          <p style="line-height: 1.6;">
+            第三层被粉色的迷雾笼罩，空气中弥漫着玫瑰的香气。
+            但这香气中隐藏着某种危险的甜腻，让人既迷恋又恐惧...
+          </p>
+          
+          <div style="background: var(--bg); border: 1px solid var(--gold); padding: 15px; border-radius: 6px; margin: 15px 0;">
+            <em style="color: ${mask.color};">
+              「${characterName}的身影在迷雾中若隐若现：爱是最美的毒药，
+              它能治愈一切伤痛，也能带来最深的绝望。你准备好品尝了吗？」
+            </em>
+          </div>
+          
+          <p style="line-height: 1.6; color: var(--ink);">
+            你的心跳开始加速，不知道是因为恐惧还是期待。
+            面具似乎在引导你走向某个特定的方向...
+          </p>
+        `,
+        choices: [
+          {text: '拥抱爱的力量', action: () => { addLoveDialogue(); }},
+          {text: '保持理智', action: () => { renderMap(); }}
+        ]
+      },
+      4: {
+        title: '恐惧的深渊',
+        story: `
+          <p style="line-height: 1.6;">
+            第四层陷入了绝对的黑暗，只有你面具的微光在指引方向。
+            四周传来若有若无的窃窃私语，那些是你内心最深处的恐惧...
+          </p>
+          
+          <div style="background: rgba(139, 75, 140, 0.1); padding: 15px; border-radius: 8px; margin: 15px 0;">
+            <em style="color: ${mask.color};">
+              「${characterName}的声音从黑暗中传来：恐惧是人类最原始的情感，
+              也是最诚实的情感。不要逃避它，拥抱它，让它成为你的力量...」
+            </em>
+          </div>
+          
+          <p style="line-height: 1.6; color: #A0A0A0;">
+            黑暗中似乎有什么东西在移动，但当你试图看清时，
+            它们又消失了。这种不确定性让你的恐惧不断放大...
+          </p>
+        `,
+        choices: [
+          {text: '直面内心的恐惧', action: () => { addFearDialogue(); }},
+          {text: '寻找光明', action: () => { renderMap(); }}
+        ]
+      },
+      5: {
+        title: '遗忘的边界',
+        story: `
+          <p style="line-height: 1.6;">
+            第五层的一切都显得模糊不清，仿佛被某种力量故意抹去了细节。
+            你开始怀疑自己的记忆，甚至怀疑自己的存在...
+          </p>
+          
+          <div style="background: rgba(139, 75, 140, 0.1); padding: 15px; border-radius: 8px; margin: 15px 0;">
+            <em style="color: ${mask.color};">
+              「${characterName}的身影变得透明：遗忘是一种恩赐，
+              它能让你摆脱痛苦的回忆，但同时也会带走珍贵的经历。
+              你愿意用什么来换取这种解脱？」
+            </em>
+          </div>
+          
+          <p style="line-height: 1.6; color: #A0A0A0;">
+            你感觉自己的记忆在慢慢流失，但奇怪的是，
+            这种感觉并不完全令人恐惧，反而有一种奇异的平静...
+          </p>
+        `,
+        choices: [
+          {text: '拥抱遗忘', action: () => { addOblivionDialogue(); }},
+          {text: '坚持记忆', action: () => { renderMap(); }}
+        ]
+      },
+      6: {
+        title: '真相的前夜',
+        story: `
+          <p style="line-height: 1.6;">
+            第六层的空气中充满了紧张感，仿佛暴风雨前的宁静。
+            你意识到自己正在接近某个重要的真相...
+          </p>
+          
+          <div style="background: rgba(139, 75, 140, 0.1); padding: 15px; border-radius: 8px; margin: 15px 0;">
+            <em style="color: ${mask.color};">
+              「所有面具的声音同时响起：真相往往比谎言更加残酷，
+              但只有面对真相，你才能真正理解Ave Mujica的意义...」
+            </em>
+          </div>
+          
+          <p style="line-height: 1.6; color: #A0A0A0;">
+            面具开始发出强烈的光芒，你感受到前所未有的力量在体内涌动。
+            但同时，你也感受到了巨大的责任和压力...
+          </p>
+        `,
+        choices: [
+          {text: '准备面对真相', action: () => { addTruthDialogue(); }},
+          {text: '继续前进', action: () => { renderMap(); }}
+        ]
+      },
+      7: {
+        title: '最终的觉悟',
+        story: `
+          <p style="line-height: 1.6;">
+            第七层，最后的试炼之地。这里的一切都显得庄严而神圣，
+            仿佛是为了某个重要的仪式而准备的...
+          </p>
+          
+          <div style="background: rgba(139, 75, 140, 0.1); padding: 15px; border-radius: 8px; margin: 15px 0;">
+            <em style="color: ${mask.color};">
+              「Ave Mujica的真正意义即将揭晓。你已经走过了痛苦、死亡、爱恋、恐惧和遗忘，
+              现在是时候将这一切融合，找到属于你自己的答案了...」
+            </em>
+          </div>
+          
+          <p style="line-height: 1.6; color: #A0A0A0;">
+            前方的光芒越来越强烈，你知道最终的对决即将到来。
+            无论结果如何，这都将是一次改变命运的相遇...
+          </p>
+        `,
+        choices: [
+          {text: '迎接最终试炼', action: () => { renderMap(); }}
+        ]
+      }
+    };
+    
+    const currentStory = floorStories[game.floor] || floorStories[7];
+    
+    setStory(`
+      <div style="text-align: center; margin-bottom: 20px;">
+        <h3 style="color: var(--gold);">第 ${game.floor} 层 - ${currentStory.title}</h3>
+      </div>
+      ${currentStory.story}
+    `, currentStory.choices.map(choice => ({
+      text: choice.text,
+      on: choice.action
+    })));
+    
+    renderHUD(); 
+    updateCharacterPortrait(); 
+    updateEnemyPortrait();
+  }
+  
+  function showFinalFloorTransition() {
+    setStory(`
+      <div style="text-align: center; margin-bottom: 20px;">
+        <h3 style="color: #8B4B8C;">超越第七层 - 无尽的深渊</h3>
+      </div>
+      
+      <p style="line-height: 1.6;">
+        你已经超越了原本的试炼范围，进入了未知的领域。
+        这里的法则已经不再适用，现实与梦境完全交融...
+      </p>
+      
+      <div style="background: rgba(139, 75, 140, 0.1); padding: 15px; border-radius: 8px; margin: 15px 0;">
+        <em style="color: #8B4B8C;">
+          「你听到了Ave Mujica永恒的旋律，那是超越时间和空间的音乐，
+          引导着迷失的灵魂找到归宿...」
+        </em>
+      </div>
+      
+      <p style="line-height: 1.6; color: #A0A0A0;">
+        在这个无尽的深渊中，你将面对更加强大的敌人，
+        但同时也将获得更加深刻的领悟...
+      </p>
+    `, [
+      {text: '继续深入', on() { renderMap(); }}
+    ]);
+    
+    renderHUD(); 
+    updateCharacterPortrait(); 
+    updateEnemyPortrait();
+  }
+  
+  // 各种对话选择的函数
+  function addMadnessDialogue() {
+    game.player.madness++;
+    addLog('你倾听了内心的声音，狂气值+1');
+    setStory(`
+      <p style="line-height: 1.6;">
+        你选择倾听内心深处的声音，那些被压抑的情感开始涌现。
+        痛苦、愤怒、绝望...但同时也有力量在其中诞生。
+      </p>
+      
+      <div style="background: rgba(139, 75, 140, 0.1); padding: 15px; border-radius: 8px; margin: 15px 0;">
+        <em style="color: #8B4B8C;">
+          「你感受到了真正的痛苦，也理解了真正的力量。
+          狂气并非诅咒，而是通向真理的道路...」
+        </em>
+      </div>
+    `, [
+      {text: '继续前进', on() { renderMap(); }}
+    ]);
+    renderHUD();
+  }
+  
+  function addCorruptionDialogue() {
+    increaseCorruption({p: game.player});
+    addLog('你与死亡对话，堕落度+1');
+    setStory(`
+      <p style="line-height: 1.6;">
+        你选择与死亡对话，感受到了生命的脆弱和死亡的永恒。
+        这种体验改变了你对存在的理解...
+      </p>
+      
+      <div style="background: rgba(139, 75, 140, 0.1); padding: 15px; border-radius: 8px; margin: 15px 0;">
+        <em style="color: #8B4B8C;">
+          「死亡教会了你生命的真谛。在死亡的阴影下，
+          你开始理解什么是真正重要的...」
+        </em>
+      </div>
+    `, [
+      {text: '继续前进', on() { renderMap(); }}
+    ]);
+    renderHUD();
+  }
+  
+  function addLoveDialogue() {
+    heal({p: game.player}, 10);
+    addLog('你拥抱了爱的力量，回复10点生命');
+    setStory(`
+      <p style="line-height: 1.6;">
+        你选择拥抱爱的力量，感受到了温暖和治愈。
+        但同时，你也意识到爱的双面性...
+      </p>
+      
+      <div style="background: rgba(139, 75, 140, 0.1); padding: 15px; border-radius: 8px; margin: 15px 0;">
+        <em style="color: #8B4B8C;">
+          「爱治愈了你的伤痛，但也在你心中种下了新的种子。
+          这种子将会开出什么样的花朵，只有时间能够告诉你...」
+        </em>
+      </div>
+    `, [
+      {text: '继续前进', on() { renderMap(); }}
+    ]);
+    renderHUD();
+  }
+  
+  function addFearDialogue() {
+    game.player.madness++;
+    game.player.maxEnergy++;
+    addLog('你直面了恐惧，狂气值+1，最大能量+1');
+    setStory(`
+      <p style="line-height: 1.6;">
+        你选择直面内心的恐惧，在黑暗中找到了新的力量。
+        恐惧不再是束缚，而是成长的催化剂...
+      </p>
+      
+      <div style="background: rgba(139, 75, 140, 0.1); padding: 15px; border-radius: 8px; margin: 15px 0;">
+        <em style="color: #8B4B8C;">
+          「恐惧教会了你勇气的真谛。只有经历过真正的恐惧，
+          才能理解什么是真正的勇敢...」
+        </em>
+      </div>
+    `, [
+      {text: '继续前进', on() { renderMap(); }}
+    ]);
+    renderHUD();
+  }
+  
+  function addOblivionDialogue() {
+    if (game.player.madness > 0) game.player.madness--;
+    if (game.player.corruption > 0) game.player.corruption--;
+    addLog('你拥抱了遗忘，狂气值-1，堕落度-1');
+    setStory(`
+      <p style="line-height: 1.6;">
+        你选择拥抱遗忘，感受到了前所未有的平静。
+        痛苦的记忆开始模糊，但同时珍贵的回忆也在消失...
+      </p>
+      
+      <div style="background: rgba(139, 75, 140, 0.1); padding: 15px; border-radius: 8px; margin: 15px 0;">
+        <em style="color: #8B4B8C;">
+          「遗忘带来了解脱，但也带来了空虚。
+          在失去与获得之间，你找到了新的平衡...」
+        </em>
+      </div>
+    `, [
+      {text: '继续前进', on() { renderMap(); }}
+    ]);
+    renderHUD();
+  }
+  
+  function addTruthDialogue() {
+    game.player.maxHp += 10;
+    game.player.hp += 10;
+    addLog('你准备面对真相，最大生命+10');
+    setStory(`
+      <p style="line-height: 1.6;">
+        你选择准备面对真相，感受到了内心的坚定。
+        无论真相多么残酷，你都已经做好了准备...
+      </p>
+      
+      <div style="background: rgba(139, 75, 140, 0.1); padding: 15px; border-radius: 8px; margin: 15px 0;">
+        <em style="color: #8B4B8C;">
+          「真相的力量让你变得更加强大。
+          只有敢于面对真相的人，才能获得真正的自由...」
+        </em>
+      </div>
+    `, [
+      {text: '继续前进', on() { renderMap(); }}
+    ]);
+    renderHUD();
+  }
+
+  // ===== 地图/事件/休憩 =====
+  function enterNode(i){ if(i===0) startCombat(); else if(i===1) randomEvent(); else campfire(); }
+  function randomEvent(){ 
+    const events = [
+      // ===== Ave Mujica 主题事件 =====
+      
+      // 假面舞会事件 - 深度对话版本
+      () => showMasqueradeBall(),
+      
+      // 塔罗占卜事件 - 深度对话版本
+      () => showTarotReading(),
+      
+      // 木偶剧场事件
+      () => setStory('古老的木偶剧场，舞台上正在上演悲剧...', [
+        {text:'观看《堕落天使》（+1堕落度）', on(){ 
+          increaseCorruption({p:game.player}); 
+          renderHUD(); toNextFloor(); 
+        }},
+        {text:'观看《月下重生》（+15生命，改变月相）', on(){ 
+          heal({p:game.player}, 15); 
+          changeMoonPhase({p:game.player}); 
+          renderHUD(); toNextFloor(); 
+        }},
+        {text:'成为木偶师（获得操控类技能）', on(){ 
+          const controlSkills = SKILL_DB.filter(s => s.type === 'control' && !game.player.skills.includes(s.id));
+          if(controlSkills.length > 0) {
+            game.player.skills.push(controlSkills[0].id);
+          }
+          toNextFloor(); 
+        }},
+        {text:'离开剧场（无效果）', on(){ toNextFloor(); }}
+      ]),
+      
+      // 神秘的Ave Mujica成员事件 - 深度对话版本
+      () => showAveMujicaEncounter(),
+      
+      // 血月祭典事件
+      () => setStory('血月升起，古老的祭典开始了...', [
+        {text:'参与血月仪式（+2堕落度，获得终极技能，月相变血月）', on(){ 
+          increaseCorruption({p:game.player}); 
+          increaseCorruption({p:game.player}); 
+          const ultimateSkills = SKILL_DB.filter(s => s.type === 'ultimate' && !game.player.skills.includes(s.id));
+          if(ultimateSkills.length > 0) {
+            game.player.skills.push(ultimateSkills[0].id);
+          }
+          game.moonPhase = 'blood';
+          renderHUD(); toNextFloor(); 
+        }},
+        {text:'抵抗血月诱惑（-10生命，-1堕落度）', on(){ 
+          game.player.hp -= 10; 
+          if(game.player.corruption > 0) game.player.corruption--;
+          addLog('抵抗了血月的诱惑'); 
+          renderHUD(); toNextFloor(); 
+        }},
+        {text:'逃离祭典（无效果）', on(){ toNextFloor(); }}
+      ]),
+      
+      // 骑士墓地事件
+      () => setStory('古老的骑士墓地，墓碑上刻着逝者的名字...', [
+        {text:'缅怀死亡骑士（+1狂气，获得死亡骑士祝福遗物）', on(){ 
+          game.player.relics.push('death_knight_blessing'); 
+          game.player.madness++; 
+          addLog('获得死亡骑士的祝福'); 
+          renderHUD(); renderRelics(); toNextFloor(); 
+        }},
+        {text:'挖掘古墓（+1堕落度，获得古老遗物）', on(){ 
+          increaseCorruption({p:game.player}); 
+          game.player.relics.push('ancient_relic'); 
+          renderHUD(); renderRelics(); toNextFloor(); 
+        }},
+        {text:'献花致敬（+20生命）', on(){ 
+          heal({p:game.player}, 20); 
+          renderHUD(); toNextFloor(); 
+        }},
+        {text:'离开墓地（无效果）', on(){ toNextFloor(); }}
+      ]),
+      
+      // 神秘商店事件
+      () => setStory('一个戴着面具的商人出现：「用狂气换取禁忌知识如何？」', [
+        {text:'用狂气购买技能（-3狂气，选择新技能）', on(){ 
+          if(game.player.madness >= 3) { 
+            game.player.madness -= 3; 
+            offerSkills(); 
+          } else { 
+            addLog('狂气不足'); 
+            toNextFloor(); 
+          }
+        }},
+        {text:'用生命购买遗物（-15生命，选择新遗物）', on(){ 
+          if(game.player.hp > 15) { 
+            game.player.hp -= 15; 
+            offerRelic(); 
+          } else { 
+            addLog('生命不足'); 
+            toNextFloor(); 
+          }
+        }},
+        {text:'用堕落度购买禁忌技能（-2堕落度，获得禁忌技能）', on(){ 
+          if(game.player.corruption >= 2) { 
+            game.player.corruption -= 2; 
+            const forbiddenSkills = SKILL_DB.filter(s => s.type === 'forbidden' && !game.player.skills.includes(s.id));
+            if(forbiddenSkills.length > 0) {
+              game.player.skills.push(forbiddenSkills[0].id);
+            }
+            renderHUD(); toNextFloor(); 
+          } else { 
+            addLog('堕落度不足'); 
+            toNextFloor(); 
+          }
+        }},
+        {text:'离开（无效果）', on(){ toNextFloor(); }}
+      ]),
+      
+      // 月之神殿事件
+      () => setStory('月之神殿矗立在你面前，月光从破碎的穹顶洒下...', [
+        {text:'向月神祈祷（改变月相，获得月神祝福遗物）', on(){ 
+          changeMoonPhase({p:game.player}); 
+          game.player.relics.push('moon_blessing'); 
+          renderHUD(); renderRelics(); toNextFloor(); 
+        }},
+        {text:'献祭记忆（失去1个技能，+2能量上限）', on(){ 
+          if(game.player.skills.length > 1) {
+            const idx = rng.int(0, game.player.skills.length-1);
+            game.player.skills.splice(idx, 1);
+            game.player.maxEnergy += 2;
+            addLog('献祭了记忆，获得更多能量');
+          }
+          renderHUD(); toNextFloor(); 
+        }},
+        {text:'离开神殿（无效果）', on(){ toNextFloor(); }}
+      ]),
+      
+      // 破碎的镜子事件（Ave Mujica主题）
+      () => setStory('破碎的镜子反射着五个不同的面具...', [
+        {text:'凝视Timoris的恐惧（+2狂气，获得Timoris技能）', on(){ 
+          game.player.madness += 2; 
+          const fearSkills = SKILL_DB.filter(s => s.mask === 'timoris' && !game.player.skills.includes(s.id));
+          if(fearSkills.length > 0) {
+            game.player.skills.push(fearSkills[0].id);
+          }
+          renderHUD(); toNextFloor(); 
+        }},
+        {text:'触摸镜片（-8生命，获得镜片碎片遗物）', on(){ 
+          game.player.hp -= 8; 
+          game.player.relics.push('mirror_fragment'); 
+          renderHUD(); renderRelics(); toNextFloor(); 
+        }},
+        {text:'绕过镜子（无效果）', on(){ toNextFloor(); }}
+      ]),
+      
+      // 血之契约事件
+      () => setStory('古老的血之契约书在月光下发出红光...', [
+        {text:'签署契约（+1堕落度，获得血之契约遗物）', on(){ 
+          increaseCorruption({p:game.player}); 
+          game.player.relics.push('blood_pact'); 
+          renderHUD(); renderRelics(); toNextFloor(); 
+        }},
+        {text:'用血强化面具（-5生命，面具技能增强3回合）', on(){ 
+          game.player.enhancedTurns += 3; 
+          game.player.hp -= 5;
+          addLog('面具技能在3回合内增强'); 
+          renderHUD(); toNextFloor(); 
+        }},
+        {text:'拒绝契约（无效果）', on(){ toNextFloor(); }}
+      ]),
+      
+      // 迷失的木偶事件
+      () => setStory('一个破碎的木偶躺在地上：「我曾经也有梦想...」', [
+        {text:'修复木偶（获得召唤技能，获得木偶之魂遗物）', on(){ 
+          const puppetSkills = SKILL_DB.filter(s => s.type === 'summon' && !game.player.skills.includes(s.id));
+          if(puppetSkills.length > 0) {
+            game.player.skills.push(puppetSkills[0].id);
+          }
+          game.player.relics.push('puppet_soul');
+          renderRelics(); toNextFloor(); 
+        }},
+        {text:'吸收木偶的记忆（+1狂气，+15生命）', on(){ 
+          game.player.madness++; 
+          heal({p:game.player}, 15); 
+          renderHUD(); toNextFloor(); 
+        }},
+        {text:'忽视木偶（无效果）', on(){ toNextFloor(); }}
+      ]),
+      
+      // 禁忌图书馆事件
+      () => setStory('Ave Mujica的禁忌图书馆，书架上摆满了危险的知识...', [
+        {text:'阅读《面具的真相》（+3狂气，解锁面具切换）', on(){ 
+          game.player.madness += 3; 
+          const maskSkills = SKILL_DB.filter(s => s.id === 'maskShift' && !game.player.skills.includes(s.id));
+          if(maskSkills.length > 0) {
+            game.player.skills.push(maskSkills[0].id);
+          }
+          renderHUD(); toNextFloor(); 
+        }},
+        {text:'阅读《月相秘典》（学习月相技能）', on(){ 
+          const moonSkills = SKILL_DB.filter(s => s.type === 'moon' && !game.player.skills.includes(s.id));
+          if(moonSkills.length > 0) {
+            game.player.skills.push(moonSkills[0].id);
+          }
+          toNextFloor(); 
+        }},
+        {text:'阅读《治愈之歌》（+20生命）', on(){ 
+          heal({p:game.player}, 20); 
+          renderHUD(); toNextFloor(); 
+        }},
+        {text:'离开图书馆', on(){ toNextFloor(); }}
+      ]),
+      
+      () => setStory('诡异的雕像：它的眼睛似乎在注视着你。', [
+        {text:'触摸雕像（随机效果）', on(){ 
+          const effect = rng.int(0, 2);
+          if(effect === 0) { heal({p:game.player}, 25); }
+          else if(effect === 1) { game.player.hp -= 15; }
+          else { game.player.relics.push('statue_blessing'); renderRelics(); }
+          renderHUD(); toNextFloor(); 
+        }},
+        {text:'破坏雕像（获得石块遗物）', on(){ game.player.relics.push('stone_chunk'); renderRelics(); toNextFloor(); }},
+        {text:'离开', on(){ toNextFloor(); }}
+      ]),
+      
+      () => setStory('月光泉水：清澈的泉水反射着月光。', [
+        {text:'饮用泉水（完全恢复生命）', on(){ game.player.hp = game.player.maxHp; renderHUD(); toNextFloor(); }},
+        {text:'用泉水净化（移除所有诅咒）', on(){ game.player.curse = 0; renderHUD(); toNextFloor(); }},
+        {text:'收集泉水（获得治疗药水遗物）', on(){ game.player.relics.push('healing_potion'); renderRelics(); toNextFloor(); }}
+      ]),
+      
+      () => setStory('战士的墓碑：一位英勇战士的最后安息地。', [
+        {text:'祭拜（获得战士之魂遗物）', on(){ game.player.relics.push('warrior_soul'); renderRelics(); toNextFloor(); }},
+        {text:'挖掘墓穴（+1诅咒，获得古老武器）', on(){ 
+          game.player.curse++; 
+          game.player.relics.push('ancient_weapon'); 
+          renderHUD(); renderRelics(); toNextFloor(); 
+        }},
+        {text:'离开', on(){ toNextFloor(); }}
+      ]),
+      
+      () => setStory('神秘的传送门：通向未知的地方。', [
+        {text:'进入传送门（跳过2层，但受到伤害）', on(){ 
+          game.player.hp -= 20; 
+          game.floor += 2; 
+          renderHUD(); toNextFloor(); 
+        }},
+        {text:'研究传送门（学习传送技能）', on(){ 
+          const teleportSkill = SKILL_DB.find(s => s.id === 'teleport');
+          if(teleportSkill && !game.player.skills.includes('teleport')) {
+            game.player.skills.push('teleport');
+          }
+          toNextFloor(); 
+        }},
+        {text:'绕过', on(){ toNextFloor(); }}
+      ]),
+      
+      () => setStory('魔法水晶：蕴含着纯净的能量。', [
+        {text:'吸收能量（永久+1能量）', on(){ 
+          game.player.maxEnergy = (game.player.maxEnergy || 3) + 1; 
+          renderHUD(); toNextFloor(); 
+        }},
+        {text:'粉碎水晶（获得水晶碎片遗物）', on(){ 
+          game.player.relics.push('crystal_shard'); 
+          renderRelics(); toNextFloor(); 
+        }},
+        {text:'离开', on(){ toNextFloor(); }}
+      ]),
+      
+      () => setStory('古老的锻造台：还在散发着余温。', [
+        {text:'锻造武器（-10生命，所有攻击+3伤害）', on(){ 
+          game.player.hp -= 10; 
+          game.player.relics.push('forged_weapon'); 
+          renderHUD(); renderRelics(); toNextFloor(); 
+        }},
+        {text:'锻造护甲（-5生命，每回合+2格挡）', on(){ 
+          game.player.hp -= 5; 
+          game.player.relics.push('forged_armor'); 
+          renderHUD(); renderRelics(); toNextFloor(); 
+        }},
+        {text:'离开', on(){ toNextFloor(); }}
+      ]),
+      
+      () => setStory('诅咒的宝箱：散发着不祥的气息。', [
+        {text:'强行打开（+2诅咒，获得强力遗物）', on(){ 
+          game.player.curse += 2; 
+          game.player.relics.push('cursed_treasure'); 
+          renderHUD(); renderRelics(); toNextFloor(); 
+        }},
+        {text:'小心打开（+1诅咒，学习新技能）', on(){ 
+          game.player.curse++; 
+          offerSkills(); 
+        }},
+        {text:'离开', on(){ toNextFloor(); }}
+      ]),
+      
+      () => setStory('时间裂缝：时空在此处扭曲。', [
+        {text:'进入裂缝（重置所有技能冷却）', on(){ 
+          game.player.skillCooldowns = {}; 
+          game.player.skillUses = {}; 
+          toNextFloor(); 
+        }},
+        {text:'观察裂缝（获得时间遗物）', on(){ 
+          game.player.relics.push('time_shard'); 
+          renderRelics(); toNextFloor(); 
+        }},
+        {text:'远离', on(){ toNextFloor(); }}
+      ]),
+      
+      () => setStory('疯狂的学者：「真理就在眼前！」', [
+        {text:'听取教导（+3狂气，学习2个技能）', on(){ 
+          game.player.madness += 3; 
+          offerSkills(); 
+          // 延迟第二次技能选择
+          setTimeout(() => offerSkills(), 100);
+        }},
+        {text:'安抚学者（-1狂气，获得智慧遗物）', on(){ 
+          if(game.player.madness > 0) game.player.madness--; 
+          game.player.relics.push('scholar_wisdom'); 
+          renderHUD(); renderRelics(); toNextFloor(); 
+        }},
+        {text:'逃离', on(){ toNextFloor(); }}
+      ]),
+      
+      () => setStory('月相祭坛：可以改变月相的神秘祭坛。', [
+        {text:'改变为新月（重置狂气和诅咒）', on(){ 
+          game.moonPhase = 0; 
+          game.player.madness = 0; 
+          game.player.curse = 0; 
+          renderHUD(); toNextFloor(); 
+        }},
+        {text:'改变为满月（+2狂气，攻击力翻倍）', on(){ 
+          game.moonPhase = 3; 
+          game.player.madness += 2; 
+          game.player.relics.push('moon_blessing'); 
+          renderHUD(); renderRelics(); toNextFloor(); 
+        }},
+        {text:'离开', on(){ toNextFloor(); }}
+      ]),
+      
+      () => setStory('神秘的面具商人：「选择你的新面孔...」', [
+        {text:'战士面具（+10最大生命，学习攻击技能）', on(){ 
+          game.player.maxHp += 10; 
+          game.player.hp += 10; 
+          const attackSkills = SKILL_DB.filter(s => s.type === 'attack' && !game.player.skills.includes(s.id));
+          if(attackSkills.length > 0) {
+            game.player.skills.push(attackSkills[0].id);
+          }
+          renderHUD(); toNextFloor(); 
+        }},
+        {text:'法师面具（+1能量，学习魔法技能）', on(){ 
+          game.player.maxEnergy = (game.player.maxEnergy || 3) + 1; 
+          const magicSkills = SKILL_DB.filter(s => s.type === 'magic' && !game.player.skills.includes(s.id));
+          if(magicSkills.length > 0) {
+            game.player.skills.push(magicSkills[0].id);
+          }
+          renderHUD(); toNextFloor(); 
+        }},
+        {text:'拒绝', on(){ toNextFloor(); }}
+      ])
+    ];
+    
+    const event = events[rng.int(0, events.length - 1)];
+    event();
+  }
+  function campfire(){ setStory('月光营火：在这里你可以聆听内心的声音...', [
+    {text:'休息（+20生命）', on(){ heal({p:game.player},20); renderHUD(); toNextFloor(); }},
+    {text:'面具冥想（学习新技能）', on(){ offerSkills(); }},
+    {text:'狂气修炼（+1狂气，+5最大生命）', on(){ 
+      game.player.madness++; 
+      game.player.maxHp += 5;
+      game.player.hp += 5;
+      game.player.relics.push('madness_sigil'); 
+      renderHUD(); renderRelics(); toNextFloor(); 
+    }},
+    {text:'月相观测（改变月相，+1能量）', on(){ 
+      changeMoonPhase({p:game.player}); 
+      game.player.energy++;
+      renderHUD(); toNextFloor(); 
+    }},
+    {text:'深度冥想（+1最大能量，+1堕落度）', on(){ 
+      game.player.maxEnergy++; 
+      increaseCorruption({p:game.player}); 
+      renderHUD(); toNextFloor(); 
+    }}
+  ]); }
+
+  // ===== 开场剧情与结局 =====
+  function startIntro(){
+    // 直接设置Doloris为默认角色
+    game.player.name = 'Doloris';
+    game.player.currentMask = 'doloris';
+    game.player.skills = getBaseSkills();
+    game.player.madness = 0;
+    game.player.corruption = 0;
+    game.player.maxEnergy = 4;
+    
+    // 直接开始Doloris的专属开场故事
+    startDirectJourney();
+  }
+  
+  function startDirectJourney() {
+    // 基于背景故事，Doloris是Ave Mujica的核心人物，直接开始她的故事
+    setStory(`
+      <div style="text-align: center; margin-bottom: 20px;">
+        <h3 style="color: var(--gold);">Doloris - 痛苦之面</h3>
+      </div>
+      
+      <p style="line-height: 1.6; color: var(--ink);">
+        在月光的见证下，你已经戴上了痛苦之面。这不是选择，而是命运。
+        Doloris的力量在你体内觉醒，痛苦与力量交织，成为你前行的动力。
+      </p>
+      
+      <div style="background: var(--bg); border: 1px solid var(--gold); padding: 15px; border-radius: 6px; margin: 15px 0;">
+        <p style="color: var(--gold); font-weight: bold; margin-bottom: 8px;">
+          Doloris的低语：
+        </p>
+        <p style="color: var(--ink); font-style: italic;">
+          "痛苦是我的名字，也是我的力量。在黑暗中，我将教会你如何将痛苦转化为力量，
+          将绝望化作希望。但记住，每一次使用我的力量，你都将承受相应的痛苦..."
+        </p>
+      </div>
+      
+      <p style="line-height: 1.6; color: var(--ink);">
+        神殿开始震动，古老的机关被激活。一道光门在你面前缓缓打开，
+        通向Ave Mujica试炼的深渊。你感受到了前所未有的力量，
+        但同时也意识到这份力量背后隐藏着巨大的代价...
+      </p>
+      
+      <div style="background: var(--panel); border: 1px solid var(--accent); padding: 15px; border-radius: 6px; margin: 15px 0;">
+        <strong style="color: var(--accent);">系统提示：</strong><br>
+        • 狂气值会影响你的判断和对话选择<br>
+        • 堕落度会改变故事的走向和结局<br>
+        • 月相会影响技能效果和遭遇的事件<br>
+        • 每个选择都有其代价，请谨慎决定
+      </div>
+    `, [
+      {text: '踏入光门，开始Ave Mujica的试炼', on() { 
+        game.state='map'; 
+        renderHUD(); 
+        renderMap(); 
+        updateCharacterPortrait();
+      }}
+    ]);
+  }
+  
+  function showIntroSequence() {
+    setStory(`
+      <div style="text-align: center; font-style: italic; color: #8B4B8C; margin-bottom: 20px;">
+        「在月光的见证下，五个面具静静地躺在古老的祭坛上...」
+      </div>
+      
+      <p style="line-height: 1.6;">
+        这里是被遗忘的神殿，月光透过破碎的彩色玻璃洒在地面上，形成斑驳的光影。
+        空气中弥漫着古老的香气，仿佛时间在这里停滞了千年。
+      </p>
+      
+      <p style="line-height: 1.6; color: #A0A0A0;">
+        你感受到一种莫名的召唤，脚步不由自主地向祭坛走去。
+        五个面具，每一个都散发着不同的气息，诉说着不同的故事...
+      </p>
+    `, [
+      {text: '走向祭坛', on() { showMaskSelection(); }}
+    ]);
+  }
+  
+  function showMaskSelection() {
+    setStory(`
+      <div style="text-align: center; margin-bottom: 20px;">
+        <h3 style="color: #8B4B8C;">选择你的命运面具</h3>
+      </div>
+      
+      <div style="background: rgba(139, 75, 140, 0.1); padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+        <strong style="color: #8B4B8C;">Doloris - 痛苦之面</strong><br>
+        <em style="color: #A0A0A0;">「痛苦是成长的代价，也是力量的源泉...」</em><br>
+        擅长暗影攻击和面具转换，在痛苦中寻找力量。
+      </div>
+      
+      <div style="background: rgba(139, 75, 140, 0.1); padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+        <strong style="color: #8B4B8C;">Mortis - 死亡之面</strong><br>
+        <em style="color: #A0A0A0;">「死亡并非终结，而是另一种开始...」</em><br>
+        掌控生死之力，能够汲取生命和操控血液。
+      </div>
+      
+      <div style="background: rgba(139, 75, 140, 0.1); padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+        <strong style="color: #8B4B8C;">Amoris - 爱恋之面</strong><br>
+        <em style="color: #A0A0A0;">「爱是最美的毒药，也是最深的诅咒...」</em><br>
+        以爱之名施展魅惑和治愈，在温柔中隐藏锋芒。
+      </div>
+      
+      <div style="background: rgba(139, 75, 140, 0.1); padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+        <strong style="color: #8B4B8C;">Timoris - 恐惧之面</strong><br>
+        <em style="color: #A0A0A0;">「恐惧是心灵的枷锁，也是精神的武器...」</em><br>
+        操控恐惧和噩梦，在狂气中释放真正的力量。
+      </div>
+      
+      <div style="background: rgba(139, 75, 140, 0.1); padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+        <strong style="color: #8B4B8C;">Oblivionis - 遗忘之面</strong><br>
+        <em style="color: #A0A0A0;">「遗忘是解脱，也是新生的开始...」</em><br>
+        掌握虚无之力，能够抹除记忆和存在本身。
+      </div>
+    `, [
+      {text: '选择 Doloris（痛苦之面）', on() { selectMask('doloris'); }},
+      {text: '选择 Mortis（死亡之面）', on() { selectMask('mortis'); }},
+      {text: '选择 Amoris（爱恋之面）', on() { selectMask('amoris'); }},
+      {text: '选择 Timoris（恐惧之面）', on() { selectMask('timoris'); }},
+      {text: '选择 Oblivionis（遗忘之面）', on() { selectMask('oblivionis'); }}
+    ]);
+  }
+  
+  function selectMask(maskId) {
+    game.player.currentMask = maskId;
+    const mask = MASKS[maskId];
+    
+    setStory(`
+      <div style="text-align: center; margin-bottom: 20px;">
+        <h3 style="color: ${mask.color};">你选择了 ${mask.name}</h3>
+      </div>
+      
+      <p style="line-height: 1.6;">
+        当你的手触碰到面具的瞬间，一股强烈的力量涌入你的身体。
+        面具仿佛活了过来，与你的灵魂产生了共鸣...
+      </p>
+      
+      <div style="background: rgba(139, 75, 140, 0.1); padding: 15px; border-radius: 8px; margin: 15px 0;">
+        <em style="color: ${mask.color};">${getMaskMonologue(maskId)}</em>
+      </div>
+      
+      <p style="line-height: 1.6; color: #A0A0A0;">
+        面具缓缓融入你的脸庞，你感受到了前所未有的力量。
+        但同时，你也意识到这份力量背后隐藏着巨大的代价...
+      </p>
+      
+      <p style="line-height: 1.6;">
+        神殿开始震动，古老的机关被激活。
+        一道光门在你面前缓缓打开，通向未知的深渊...
+      </p>
+    `, [
+      {text: '踏入光门，开始旅程', on() { startJourney(); }}
+    ]);
+  }
+  
+  function getMaskMonologue(maskId) {
+    const monologues = {
+      'doloris': '「痛苦是我的名字，也是我的力量。在黑暗中，我将教会你如何将痛苦转化为力量，将绝望化作希望。但记住，每一次使用我的力量，你都将承受相应的痛苦...」',
+      'mortis': '「死亡并不可怕，可怕的是对死亡的恐惧。我将赐予你操控生死的力量，让你在生与死的边缘游走。但要小心，凝视深渊的人，深渊也在凝视着你...」',
+      'amoris': '「爱是世间最美好的情感，也是最危险的毒药。我将教会你如何用爱来治愈，也如何用爱来毁灭。但请记住，爱得越深，失去时的痛苦就越大...」',
+      'timoris': '「恐惧是人类最原始的情感，也是最强大的武器。我将让你掌控恐惧，在噩梦中寻找力量。但当你凝视恐惧时，恐惧也在改变着你...」',
+      'oblivionis': '「遗忘是解脱，也是新生。我将教会你如何抹除痛苦的记忆，也如何让敌人忘记存在的意义。但要记住，遗忘他人的同时，你也在遗忘自己...」'
+    };
+    return monologues[maskId] || '';
+  }
+  
+  function startJourney() {
+    setStory(`
+      <div style="text-align: center; margin-bottom: 20px;">
+        <h3 style="color: #8B4B8C;">Ave Mujica 的试炼开始</h3>
+      </div>
+      
+      <p style="line-height: 1.6;">
+        光门的另一边是一个扭曲的世界，这里的一切都被月光染成了银白色。
+        远处传来若有若无的音乐声，那是Ave Mujica永恒的旋律...
+      </p>
+      
+      <p style="line-height: 1.6; color: #A0A0A0;">
+        你意识到这不是一场普通的冒险，而是一次灵魂的试炼。
+        在这个世界里，你将面对自己内心最深处的恐惧、欲望和秘密。
+      </p>
+      
+      <div style="background: rgba(139, 75, 140, 0.1); padding: 15px; border-radius: 8px; margin: 15px 0;">
+        <strong style="color: #8B4B8C;">系统提示：</strong><br>
+        • 狂气值会影响你的判断和对话选择<br>
+        • 堕落度会改变故事的走向和结局<br>
+        • 月相会影响技能效果和遭遇的事件<br>
+        • 每个选择都有其代价，请谨慎决定
+      </div>
+      
+      <p style="line-height: 1.6;">
+        前方的道路分为几条，每一条都通向不同的命运...
+      </p>
+    `, [
+      {text: '踏上命运之路', on() { game.state='map'; renderHUD(); renderMap(); }}
+    ]);
+  }
+  function resolveEnding(){ 
+    const p = game.player; 
+    const madness = p.madness; 
+    const corruption = p.corruption;
+    let end;
+    
+    if(game.bossDefeated && madness <= 2 && corruption === 0) {
+      end = '纯洁终章：你保持了内心的纯净，面具与真我完美融合。Ave Mujica的真谛在你心中绽放。';
+    } else if(game.bossDefeated && madness <= 5 && corruption <= 2) {
+      end = '平衡之歌：在狂气与理智之间找到了平衡，你成为了真正的Ave Mujica成员。';
+    } else if(game.bossDefeated && corruption >= 4) {
+      end = '堕落女王：你拥抱了黑暗，成为了Ave Mujica传说中的堕落女王，统治着月夜的世界。';
+    } else if(game.bossDefeated && madness >= 8) {
+      end = '狂气诗人：疯狂成为了你的力量，你的歌声将永远回响在Ave Mujica的殿堂中。';
+    } else if(!game.bossDefeated) {
+      end = '未完成的乐章：面具的秘密仍然隐藏在黑暗中，等待着下一个勇敢的灵魂。';
+    } else {
+      end = '月蚀终幕：你在光明与黑暗之间徘徊，成为了Ave Mujica永恒的传说。';
+    }
+    
+    setStory(end + '<br><br>Ave Mujica的故事永不落幕...', [{text:'重新开始旅程', on(){ location.reload(); }}]);
+  }
+
+  // ===== 视效：血月闪烁 & 合成副歌 =====
+  function bloodMoonFlash(){ const bm = el('#bloodmoon'); bm.style.transform='scale(1.06)'; bm.style.boxShadow='0 0 18px 4px rgba(177,18,38,.9)'; setTimeout(()=>{ bm.style.transform=''; bm.style.boxShadow=''; }, 140); }
+  function playFinalChorus(){
+    // WebAudio 合成 30s 片段，避免版权素材
+    try {
+      const actx = new (window.AudioContext||window.webkitAudioContext)();
+      const tempo = 90; const seconds = 30; const notes = [261.63, 329.63, 392.00, 523.25];
+      let t = actx.currentTime;
+      for(let i=0;i<seconds;i++){
+        const n = notes[rng.int(0, notes.length-1)]; const osc = actx.createOscillator(); const g = actx.createGain();
+        osc.type='sine'; osc.frequency.value=n; g.gain.setValueAtTime(0.0001,t); g.gain.linearRampToValueAtTime(0.08,t+0.05); g.gain.linearRampToValueAtTime(0.0001,t+0.3);
+        osc.connect(g).connect(actx.destination); osc.start(t); osc.stop(t+0.32); t += 0.33;
+      }
+    } catch(e){ /* 忽略音频错误 */ }
+  }
+
+  // ===== 初始化 =====
+  function init(){ renderRelics(); renderHUD(); renderMap(); updateCharacterPortrait(); updateEnemyPortrait(); startIntro(); }
+  init();
+  </script>
+</body>
+</html>
